@@ -265,7 +265,8 @@ class TablePrinter:
         max_length = -1
         for row_index, col_row in enumerate(col_data):
             length = 0
-            for ch in col_row:
+            stripped_col_row = Printer.strip_ansi(col_row)
+            for ch in stripped_col_row:
                 if self._is_long_terminal_char(ch):
                     length += 2
                 else:
@@ -325,23 +326,21 @@ class TablePrinter:
             if self.align_list[index] is TablePrinter.Alignment.RIGHT:
                 offset = unicodes if unicodes > 0 else 0
                 row_list.append("".join([" "] * (self.cell_length_list[index] - len(cell) - offset)))
-            if not Printer.formatted(cell):
-                if color is None:
-                    cell_color = self.color_list[index] if self.color_list and self.color_list[index] else None
-                    colored_text = ""
-                    if isinstance(cell_color, tuple):
-                        colored_text = Printer.format_rgb(cell, cell_color)
-                    elif isinstance(cell_color, str):
-                        colored_text = Printer.format_hex(cell, cell_color) if cell_color.startswith(
-                            "#") else Printer.format(cell, cell_color)
-                    elif cell_color is None:
-                        colored_text = cell
-                    cell_format = colored_text
-                else:
-                    cell_format = Printer.format_hex(cell, color) if color.startswith("#") else Printer.format_rgb(cell,
-                                                                                                                   color)
+            if color is None:
+                cell_color = self.color_list[index] if self.color_list and self.color_list[index] else None
+                colored_text = ""
+                if isinstance(cell_color, tuple):
+                    colored_text = Printer.format_rgb(cell, cell_color)
+                elif isinstance(cell_color, str):
+                    colored_text = Printer.format_hex(cell, cell_color) if cell_color.startswith(
+                        "#") else Printer.format(cell, cell_color)
+                elif cell_color is None:
+                    colored_text = cell
+                cell_format = colored_text
             else:
-                cell_format = cell
+                cell_format = Printer.format_hex(cell, color) if color.startswith("#") else Printer.format_rgb(cell,
+                                                                                                               color)
+
             row_list.append(cell_format)
             if self.align_list[index] is TablePrinter.Alignment.LEFT:
                 offset = unicodes if unicodes > 0 else 0

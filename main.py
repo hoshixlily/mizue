@@ -71,9 +71,9 @@ if __name__ == '__main__':
     Printer.print_hex(' HEX COLORED TEXT ', '#00a9ff', bold=True, underlined=False)
     Printer.print_ansi(' ANSI COLORED TEXT ', TerminalColors.BRIGHT_GREEN, bold=True, underlined=False)
 
-    Printer.print_rgb(' RGB COLORED TEXT WITH BG COLOR ', (222, 222, 222), (30, 31, 35), bold=True, underlined=False)
+    Printer.print_rgb(' RGB COLORED TEXT WITH BG COLOR ', (0, 0, 0), (255, 224, 142), bold=True, underlined=False)
 
-    TablePrinter.print_text_with_border('This is', border_color='#00a9ff', border_style=TablePrinter.BorderStyle.SINGLE)
-
+    text = f'{Printer.format_hex(" COLORED ", "#212326", "#ffcc75", bold=True)} {Printer.format_hex("T", "#00a86b")}{Printer.format_hex("E", "#00a9ff")}{Printer.format_hex("X", "#CC5590")}{Printer.format_hex("T", "#8090aa")}'
+    TablePrinter.print_text_with_border(text, border_color='#Ffcc75', border_style=TablePrinter.BorderStyle.SINGLE)
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
