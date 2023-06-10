@@ -1,11 +1,14 @@
 from .util import utility, stoppable_thread
-from .printer import printer, terminal_colors
+from .printer import printer, terminal_colors, table_printer
 from .progress import progress
+from .file import fileutils
 
 __all__ = [
     'stoppable_thread',
     'utility',
     'terminal_colors',
     'printer',
+    'table_printer',
+    'fileutils',
     'progress'
 ]
