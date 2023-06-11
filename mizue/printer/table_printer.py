@@ -217,8 +217,6 @@ class TablePrinter:
         if self.enumerated:
             self.align_list.insert(0, TablePrinter.Alignment.CENTER)
 
-
-
         self.format_long_cells()
         # self.formatted_table_data = self.table_data
 
@@ -231,7 +229,8 @@ class TablePrinter:
     def _is_long_unicode(self, char):
         return not self._is_cjk(char) and ord(char) > 65536
 
-    def _is_long_terminal_char(self, char):
+    @staticmethod
+    def _is_long_terminal_char(char):
         return wcswidth(char) == 2
         # return self._is_cjk(char) or self._is_long_unicode(char)
 
@@ -250,7 +249,8 @@ class TablePrinter:
             return TablePrinter.BorderCharacterCodes.Empty
         return TablePrinter.BorderCharacterCodes.Basic
 
-    def _get_terminal_length(self, text: str) -> int:
+    @staticmethod
+    def _get_terminal_length(text: str) -> int:
         length = sum([2 if wcwidth(c) == 2 else 1 for c in text])
         return length
 
@@ -338,13 +338,10 @@ class TablePrinter:
         if len(self.title_data) > 0:
             temp_data.insert(0, self.title_data)
         max_lengths_list = []
-        # range_start = 1 if self.enumerated else 0
         for index in range(0, len(temp_data[0])):
             column = [item[index] for item in temp_data]
             max_length = self.find_max_column_cell_length(column)
             max_lengths_list.append(max_length)
-        # if self.enumerated:
-        #     max_lengths_list.insert(0, len(str(len(self.table_data))))
         max_lengths = len(self.cell_length_list)
         for index, length in enumerate(max_lengths_list):
             if index < max_lengths and (self.cell_length_list[index] is None or self.cell_length_list[index] == 0):
@@ -353,7 +350,7 @@ class TablePrinter:
         return self.cell_length_list
 
     def _resize_columns_to_fit(self):
-        terminal_length =  Utility.get_terminal_width()
+        terminal_length = Utility.get_terminal_width()
         total_length = sum([x for x in self.cell_length_list if x is not None]) + (len(self.cell_length_list) * 3) + 1
         new_length = int(terminal_length / len(self.cell_length_list))
 
