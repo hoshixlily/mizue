@@ -56,6 +56,13 @@ class Printer:
         Printer.print_ansi(Printer.format(text, TerminalColors.ERROR, bold, underlined))
 
     @staticmethod
+    def get_color_string(color: str | tuple[int, int, int]):
+        if isinstance(color, tuple):
+            return Printer.rgb_to_hex(color)
+        else:
+            return color
+
+    @staticmethod
     def hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
         """Converts a hex string to an RGB tuple."""
         hex_without_hash = hex_color.replace('#', '') if hex_color.startswith('#') else hex_color
@@ -96,6 +103,11 @@ class Printer:
         formatted_text = text if Printer.formatted(text) else Printer.format_rgb(text, text_rgb, bg_rgb, bold,
                                                                                  underlined, no_end)
         print(formatted_text, end='\n' if Printer._newline else '', flush=True)
+
+    @staticmethod
+    def rgb_to_hex(rgb: tuple[int, int, int]) -> str:
+        """Converts an RGB tuple to a hex string."""
+        return f'#{rgb[0]:02x}{rgb[1]:02x}{rgb[2]:02x}'
 
     @staticmethod
     def short_hex_to_long_hex(hex_color: str) -> str:

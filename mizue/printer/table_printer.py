@@ -86,6 +86,8 @@ class TablePrinter:
         self._color_list = []
         self._align_list = []
         self._enumerated = False
+        self._enumeration_color = None
+        self._enumeration_title = "#"
         self._auto_width: list[bool] = []
         self._border_style = TablePrinter.BorderStyle.BASIC
         self.formatted_table_data = []
@@ -158,6 +160,22 @@ class TablePrinter:
         self._enumerated = value
 
     @property
+    def enumeration_color(self):
+        return self._enumeration_color
+
+    @enumeration_color.setter
+    def enumeration_color(self, value):
+        self._enumeration_color = value
+
+    @property
+    def enumeration_title(self):
+        return self._enumeration_title
+
+    @enumeration_title.setter
+    def enumeration_title(self, value):
+        self._enumeration_title = value
+
+    @property
     def title_data(self):
         return self._title_data
 
@@ -181,16 +199,23 @@ class TablePrinter:
         # if self.enumerated:
         #     self._auto_width.insert(0, True)
         self.cell_length_list = self.get_auto_column_cell_lengths()
+
+        # cell length list should be equal to the number of columns
+        if len(self.cell_length_list) > len(self.table_data[0]):
+            self.cell_length_list = self.cell_length_list[:len(self.table_data[0])]
+
         self.color_list += [None] * (len(self.table_data[0]) - offset - len(self.color_list))
         if self.enumerated:
             self.color_list.insert(0, None)
         self.align_list += [TablePrinter.Alignment.LEFT] * (len(self.table_data[0]) - offset - len(self.align_list))
         if self.enumerated:
             self.align_list.insert(0, TablePrinter.Alignment.RIGHT)
+        if self.title_data and len(self.title_data) < len(self.table_data[0]):
+            self.title_data += [""] * (len(self.table_data[0]) - len(self.title_data))
         self.format_long_cells()
         # self.formatted_table_data = self.table_data
 
-    def _is_cjk(self, char): # CJK: Chinese, Japanese, Korean
+    def _is_cjk(self, char):  # CJK: Chinese, Japanese, Korean
         return any([r["from"] <= ord(char) <= r["to"] for r in self._ranges])
 
     def _is_half_width_cjk(self, char):
@@ -224,9 +249,11 @@ class TablePrinter:
 
     def _apply_enumeration(self):
         index = 1
-        self.title_data.insert(0, "#")
+        header_str = self.enumeration_title if self.enumeration_title else "#"
+        self.title_data.insert(0, header_str)
         for row in self.table_data:
-            row.insert(0, str(index))
+            row_number = f"{index}"
+            row.insert(0, row_number)
             index += 1
 
     def format_long_cells(self):
@@ -237,33 +264,33 @@ class TablePrinter:
         for row in temp_data:
             formatted_row = []
             for col_index, cell in enumerate(row):
-                unicodes = sum([1 if self._is_long_terminal_char(c) else 0 for c in cell])
-                if not self._auto_width[col_index]:
-                    if unicodes == 0:
-                        formatted_cell = cell[:self.cell_length_list[col_index] - 3 - unicodes] + "..." if len(cell) > \
-                                                                                                           self.cell_length_list[
-                                                                                                               col_index] else cell
-                        formatted_row.append(formatted_cell)
+                terminal_length = self._get_terminal_length(cell)
+                cell_length = self.cell_length_list[col_index]
+                remaining_chars = Printer.strip_ansi(cell[0:cell_length - 3])
+
+                remaining_chars_normal_length = len(remaining_chars)
+                remaining_chars_terminal_length = self._get_terminal_length(remaining_chars)
+
+                if remaining_chars_terminal_length != remaining_chars_normal_length:
+                    if remaining_chars_terminal_length - 3 < cell_length:
+                        visible_length = remaining_chars_terminal_length - 3 - sum([2 if wcwidth(c) == 2 else 0 for c in remaining_chars])
                     else:
-                        if self.cell_length_list[col_index] < len(cell):
-                            formatted_cell = cell[:self.cell_length_list[col_index] - 3 - unicodes] + "..."
-                            formatted_row.append(formatted_cell)
-                        else:
-                            if unicodes > 0:
-                                formatted_cell = cell[:self.cell_length_list[col_index] - 3 - unicodes] + "..."
-                                formatted_row.append(formatted_cell)
-                            else:
-                                formatted_cell = cell[:self.cell_length_list[col_index] - 3 - unicodes] + "..."
-                                formatted_row.append(formatted_cell)
+                        diff = remaining_chars_terminal_length - remaining_chars_normal_length
+                        visible_length = cell_length - diff - 3
                 else:
-                    if unicodes == 0:
-                        formatted_row.append(cell)
-                        continue
+                    visible_length = cell_length - 3
+
+                if not self._auto_width[col_index]:
+                    if cell_length > 3:
+                        formatted_cell = cell[:visible_length] + "..." if terminal_length > cell_length else cell
                     else:
-                        formatted_cell = cell[:self.cell_length_list[col_index] - 3 - unicodes] + "..." if len(cell) > \
-                                                                                                           self.cell_length_list[
-                                                                                                               col_index] else cell
-                        formatted_row.append(formatted_cell)
+                        formatted_cell = "".join(["." for _ in range(cell_length)])
+                    formatted_row.append(formatted_cell)
+                else:
+                    if terminal_length > cell_length:
+                        formatted_row.append(cell[:visible_length] + "...")
+                    else:
+                        formatted_row.append(cell)
             formatted_data.append(formatted_row)
         if len(self.title_data) > 0:
             self.formatted_title_data = formatted_data[0]
@@ -301,13 +328,13 @@ class TablePrinter:
         if len(self.title_data) > 0:
             temp_data.insert(0, self.title_data)
         max_lengths_list = []
-        range_start = 1 if self.enumerated else 0
-        for index in range(range_start, len(temp_data[0])):
+        # range_start = 1 if self.enumerated else 0
+        for index in range(0, len(temp_data[0])):
             column = [item[index] for item in temp_data]
             max_length = self.find_max_column_cell_length(column)
             max_lengths_list.append(max_length)
-        if self.enumerated:
-            max_lengths_list.insert(0, len(str(len(self.table_data))))
+        # if self.enumerated:
+        #     max_lengths_list.insert(0, len(str(len(self.table_data))))
         max_lengths = len(self.cell_length_list)
         for index, length in enumerate(max_lengths_list):
             if index < max_lengths and (self.cell_length_list[index] is None or self.cell_length_list[index] == 0):
@@ -337,7 +364,7 @@ class TablePrinter:
         dash_list.append(right)
         return Printer.format_hex("".join(dash_list), self.border_color) if self.border_color else "".join(dash_list)
 
-    def create_row(self, row: list, color: tuple[int, int, int] | str = None):
+    def create_row(self, row: list):
         row_list = []
         border_style = self._get_border_style()
         for index, cell in enumerate(row):
@@ -347,20 +374,21 @@ class TablePrinter:
             if self.align_list[index] is TablePrinter.Alignment.RIGHT:
                 cell_length = self._get_terminal_length(Printer.strip_ansi(cell))
                 row_list.append("".join([" "] * (self.cell_length_list[index] - cell_length)))
-            if color is None:
-                cell_color = self.color_list[index] if self.color_list and self.color_list[index] else None
-                colored_text = ""
-                if isinstance(cell_color, tuple):
-                    colored_text = Printer.format_rgb(cell, cell_color)
-                elif isinstance(cell_color, str):
-                    colored_text = Printer.format_hex(cell, cell_color) if cell_color.startswith(
-                        "#") else Printer.format(cell, cell_color)
-                elif cell_color is None:
-                    colored_text = cell
-                cell_format = colored_text
+
+            if index == 0 and self.enumerated:
+                cell_color = self.enumeration_color
             else:
-                cell_format = Printer.format_hex(cell, color) if color.startswith("#") else Printer.format_rgb(cell,
-                                                                                                               color)
+                cell_color = self.color_list[index] if self.color_list and self.color_list[index] else None
+
+            colored_text = ""
+            if isinstance(cell_color, tuple):
+                colored_text = Printer.format_rgb(cell, cell_color)
+            elif isinstance(cell_color, str):
+                colored_text = Printer.format_hex(cell, cell_color) if cell_color.startswith(
+                    "#") else Printer.format(cell, cell_color)
+            elif cell_color is None:
+                colored_text = cell
+            cell_format = colored_text
 
             row_list.append(cell_format)
             if self.align_list[index] is TablePrinter.Alignment.LEFT:
@@ -387,13 +415,11 @@ class TablePrinter:
         buffer.append(self.create_row_border(TablePrinter.RowBorderPosition.BOTTOM))
         return "".join(buffer)
 
-
     def print_table(self):
         if len(self.table_data) == 0:
             return
         self._initialize()
         print(self._buffer_table())
-
 
     @staticmethod
     def print_text_with_border(text: str, text_color: str = None, border_color: str = None,
