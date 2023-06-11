@@ -10,11 +10,11 @@ class Printer:
 
     @staticmethod
     def formatted(text: str) -> bool:
-        return str(text).endswith(TerminalColors.ENDC)
+        return str(text).endswith(TerminalColors.END_CHAR)
 
     @staticmethod
     def apply_background(message, bg_color):
-        end_char = '' if Printer.formatted(message) else TerminalColors.ENDC
+        end_char = '' if Printer.formatted(message) else TerminalColors.END_CHAR
         msg = str.format("{}{}{}", bg_color, message, end_char)
         return msg
 
@@ -23,7 +23,7 @@ class Printer:
         """Formats a string with the specified color, boldness, and underlining."""
         bolded = TerminalColors.BOLD if bold else ''
         underlined = TerminalColors.UNDERLINE if underlined else ''
-        end = TerminalColors.ENDC if not no_end else ''
+        end = TerminalColors.END_CHAR if not no_end else ''
         return f'{color}{bolded}{underlined}{text}{end}'
 
     @staticmethod
@@ -44,7 +44,7 @@ class Printer:
         """Formats a string with the specified color, boldness, and underlining."""
         bolded = TerminalColors.BOLD if bold else ''
         underlined = TerminalColors.UNDERLINE if underlined else ''
-        end = TerminalColors.ENDC if not no_end else ''
+        end = TerminalColors.END_CHAR if not no_end else ''
         if bg_rgb is None:
             return f'\033[38;2;{text_rgb[0]};{text_rgb[1]};{text_rgb[2]}m{bolded}{underlined}{text}{end}'
         else:

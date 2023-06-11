@@ -15,9 +15,9 @@ class TablePrinter:
         BOTTOM = 3
 
     class BorderStyle(enum.Enum):
-        SINGLE = 1,
-        DOUBLE = 2,
-        PRIMAL = 3,
+        BASIC = 1,
+        SINGLE = 2,
+        DOUBLE = 3,
         EMPTY = 4
 
     class BorderCharacterCodes:
@@ -47,7 +47,7 @@ class TablePrinter:
             HORIZONTAL = u'\u2500'  # 0xC4 -> BOX DRAWINGS LIGHT HORIZONTAL
             VERTICAL = u'\u2502'  # 0xB3 -> BOX DRAWINGS LIGHT VERTICAL
 
-        class Primal:
+        class Basic:
             TOPLEFT = "+"
             TOPRIGHT = "+"
             BOTTOMLEFT = "+"
@@ -85,7 +85,7 @@ class TablePrinter:
         self._align_list = []
         self._enumerated = False
         self._auto_width: list[bool] = []
-        self._border_style = TablePrinter.BorderStyle.PRIMAL
+        self._border_style = TablePrinter.BorderStyle.BASIC
         self.formatted_table_data = []
         self.formatted_title_data = []
         self._ranges = [
@@ -99,6 +99,8 @@ class TablePrinter:
             {"from": ord(u"\u2e80"), "to": ord(u"\u2eff")},  # cjk radicals supplement
             {"from": ord(u"\u4e00"), "to": ord(u"\u9fff")},
             {"from": ord(u"\u3400"), "to": ord(u"\u4dbf")},
+            {"from": ord(u"\uac00"), "to": ord(u"\ud7af")},  # hangul syllables
+            {"from": ord(u"\uff00"), "to": ord(u"\uffef")},  # full width unicode chars
             {"from": ord(u"\U00020000"), "to": ord(u"\U0002a6df")},
             {"from": ord(u"\U0002a700"), "to": ord(u"\U0002b73f")},
             {"from": ord(u"\U0002b740"), "to": ord(u"\U0002b81f")},
@@ -161,6 +163,10 @@ class TablePrinter:
     def title_data(self, value):
         self._title_data = value
 
+    @staticmethod
+    def _has_variation_selector(text: str) -> bool:
+        return any(TablePrinter._is_variation_selector(c) for c in text)
+
     def _initialize(self):
         if self.enumerated:
             self._apply_enumeration()
@@ -181,8 +187,11 @@ class TablePrinter:
             self.align_list.insert(0, TablePrinter.Alignment.RIGHT)
         self.format_long_cells()
 
-    def _is_cjk(self, char):  # CJK: Chinese, Japanese, Korean
+    def _is_cjk(self, char): # CJK: Chinese, Japanese, Korean
         return any([r["from"] <= ord(char) <= r["to"] for r in self._ranges])
+
+    def _is_half_width_cjk(self, char):
+        return self._is_cjk(char) and (0xff61 <= ord(char) <= 0xff9f)
 
     def _is_long_unicode(self, char):
         return not self._is_cjk(char) and ord(char) > 65536
@@ -190,16 +199,26 @@ class TablePrinter:
     def _is_long_terminal_char(self, char):
         return self._is_cjk(char) or self._is_long_unicode(char)
 
+    @staticmethod
+    def _is_variation_selector(char):
+        return 0xfe00 <= ord(char) <= 0xfe0f
+
     def _get_border_style(self):
         if self.border_style == TablePrinter.BorderStyle.SINGLE:
             return TablePrinter.BorderCharacterCodes.Single
         if self.border_style == TablePrinter.BorderStyle.DOUBLE:
             return TablePrinter.BorderCharacterCodes.Double
-        if self.border_style == TablePrinter.BorderStyle.PRIMAL:
-            return TablePrinter.BorderCharacterCodes.Primal
+        if self.border_style == TablePrinter.BorderStyle.BASIC:
+            return TablePrinter.BorderCharacterCodes.Basic
         if self.border_style == TablePrinter.BorderStyle.EMPTY:
             return TablePrinter.BorderCharacterCodes.Empty
-        return TablePrinter.BorderCharacterCodes.Primal
+        return TablePrinter.BorderCharacterCodes.Basic
+
+    def _get_terminal_length(self, text: str) -> int:
+        length = sum([2 if self._is_long_terminal_char(c) else 1 for c in text])
+        length = length + sum([1 if TablePrinter._is_variation_selector(c) else 0 for c in text])
+        length = length - sum([1 if self._is_half_width_cjk(c) else 0 for c in text])
+        return length
 
     def _apply_enumeration(self):
         index = 1
@@ -271,6 +290,7 @@ class TablePrinter:
                     length += 2
                 else:
                     length += 1
+            length = length + 1 if TablePrinter._has_variation_selector(stripped_col_row) else length
             max_length = max(max_length, length)
         return max_length
 
@@ -315,17 +335,17 @@ class TablePrinter:
         dash_list.append(right)
         return Printer.format_hex("".join(dash_list), self.border_color) if self.border_color else "".join(dash_list)
 
+
     def create_row(self, row: list, color: tuple[int, int, int] | str = None):
         row_list = []
         border_style = self._get_border_style()
         for index, cell in enumerate(row):
-            unicodes = sum([1 if self._is_long_terminal_char(c) else 0 for c in cell])
             border = Printer.format_hex(border_style.VERTICAL,
                                         self.border_color) if self.border_color else border_style.VERTICAL
             row_list.append(str.format("{}{}", border, " "))
             if self.align_list[index] is TablePrinter.Alignment.RIGHT:
-                offset = unicodes if unicodes > 0 else 0
-                row_list.append("".join([" "] * (self.cell_length_list[index] - len(cell) - offset)))
+                cell_length = self._get_terminal_length(Printer.strip_ansi(cell))
+                row_list.append("".join([" "] * (self.cell_length_list[index] - cell_length)))
             if color is None:
                 cell_color = self.color_list[index] if self.color_list and self.color_list[index] else None
                 colored_text = ""
@@ -343,9 +363,8 @@ class TablePrinter:
 
             row_list.append(cell_format)
             if self.align_list[index] is TablePrinter.Alignment.LEFT:
-                offset = unicodes if unicodes > 0 else 0
-                cell_length = len(Printer.strip_ansi(cell_format))
-                row_list.append("".join([" "] * (self.cell_length_list[index] - cell_length - offset)))
+                cell_length = self._get_terminal_length(Printer.strip_ansi(cell_format))
+                row_list.append("".join([" "] * (self.cell_length_list[index] - cell_length)))
             row_list.append(" ")
         border = Printer.format_hex(border_style.VERTICAL,
                                     self.border_color) if self.border_color else border_style.VERTICAL
@@ -367,15 +386,17 @@ class TablePrinter:
         buffer.append(self.create_row_border(TablePrinter.RowBorderPosition.BOTTOM))
         return "".join(buffer)
 
+
     def print_table(self):
         if len(self.table_data) == 0:
             return
         self._initialize()
         print(self._buffer_table())
 
+
     @staticmethod
     def print_text_with_border(text: str, text_color: str = None, border_color: str = None,
-                               border_style: BorderStyle = BorderStyle.PRIMAL):
+                               border_style: BorderStyle = BorderStyle.SINGLE):
         printer = TablePrinter([[text]])
         printer.color_list = [text_color]
         printer.border_color = border_color

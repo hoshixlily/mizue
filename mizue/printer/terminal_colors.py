@@ -2,7 +2,7 @@ from typing import Final
 
 
 class TerminalColors:
-    ENDC: Final[str] = '\033[00m'
+    END_CHAR: Final[str] = '\033[00m'
     SUCCESS: Final[str] = '\033[92m'
     WARNING: Final[str] = '\033[93m'
     ERROR: Final[str] = '\033[91m'
