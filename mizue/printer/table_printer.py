@@ -192,7 +192,7 @@ class TablePrinter:
 
     def _initialize(self):
         if self.enumerated:
-            self._apply_enumeration()
+            self._apply_enumeration(len(self.title_data) > 0)
         offset = 1 if self.enumerated else 0
         self.cell_length_list += [None] * (len(self.table_data[0]) - offset - len(self.cell_length_list))
         if self.enumerated:
@@ -201,6 +201,9 @@ class TablePrinter:
                             self.cell_length_list]
         # if self.enumerated:
         #     self._auto_width.insert(0, True)
+        if self.title_data and len(self.title_data) < len(self.table_data[0]):
+            self.title_data += [""] * (len(self.table_data[0]) - len(self.title_data))
+
         self.cell_length_list = self.get_auto_column_cell_lengths()
 
         if len(self.cell_length_list) > len(self.table_data[0]):
@@ -214,8 +217,7 @@ class TablePrinter:
         if self.enumerated:
             self.align_list.insert(0, TablePrinter.Alignment.CENTER)
 
-        if self.title_data and len(self.title_data) < len(self.table_data[0]):
-            self.title_data += [""] * (len(self.table_data[0]) - len(self.title_data))
+
 
         self.format_long_cells()
         # self.formatted_table_data = self.table_data
@@ -252,10 +254,11 @@ class TablePrinter:
         length = sum([2 if wcwidth(c) == 2 else 1 for c in text])
         return length
 
-    def _apply_enumeration(self):
+    def _apply_enumeration(self, has_title: bool = False):
         index = 1
-        header_str = self.enumeration_title if self.enumeration_title else "#"
-        self.title_data.insert(0, header_str)
+        if has_title:
+            header_str = self.enumeration_title if self.enumeration_title else "#"
+            self.title_data.insert(0, header_str)
         for row in self.table_data:
             row_number = f"{index}"
             row.insert(0, row_number)
@@ -268,7 +271,8 @@ class TablePrinter:
             temp_data.insert(0, self.title_data)
         for row in temp_data:
             formatted_row = []
-            for col_index, cell in enumerate(row):
+            for col_index, cell_data in enumerate(row):
+                cell = str(cell_data)
                 terminal_length = self._get_terminal_length(cell)
                 cell_length = self.cell_length_list[col_index]
                 remaining_chars = Printer.strip_ansi(cell[0:cell_length - 3])
@@ -296,7 +300,7 @@ class TablePrinter:
                     if terminal_length > cell_length:
                         formatted_row.append(cell[:visible_length] + "...")
                     else:
-                        formatted_row.append(cell)
+                        formatted_row.append(str(cell))
             formatted_data.append(formatted_row)
         if len(self.title_data) > 0:
             self.formatted_title_data = formatted_data[0]
@@ -319,7 +323,7 @@ class TablePrinter:
         max_length = -1
         for row_index, col_row in enumerate(col_data):
             length = 0
-            stripped_col_row = Printer.strip_ansi(col_row)
+            stripped_col_row = Printer.strip_ansi(str(col_row))
             for ch in stripped_col_row:
                 if self._is_long_terminal_char(ch):
                     length += 2
@@ -345,13 +349,24 @@ class TablePrinter:
         for index, length in enumerate(max_lengths_list):
             if index < max_lengths and (self.cell_length_list[index] is None or self.cell_length_list[index] == 0):
                 self.cell_length_list[index] = length
-
-        terminal_length = Utility.get_terminal_width()
-        total_length = sum(self.cell_length_list) + (len(self.cell_length_list) * 3) + 1
-        if total_length > terminal_length:
-            self.cell_length_list[1:] = [int(terminal_length / len(self.cell_length_list))] * len(self.cell_length_list)
-
+        self._resize_columns_to_fit()
         return self.cell_length_list
+
+    def _resize_columns_to_fit(self):
+        terminal_length =  Utility.get_terminal_width()
+        total_length = sum([x for x in self.cell_length_list if x is not None]) + (len(self.cell_length_list) * 3) + 1
+        new_length = int(terminal_length / len(self.cell_length_list))
+
+        short_columns = [x for x in self.cell_length_list if x is not None and x < new_length]
+        long_columns = [x for x in self.cell_length_list if x is not None and x > new_length]
+        remaining_length = terminal_length - (new_length * len(short_columns) if len(short_columns) > 0 else 0)
+        padding_length = int(math.floor(remaining_length / len(long_columns))) if len(long_columns) > 0 else 0
+
+        if total_length > terminal_length:
+            for cx in range(1, len(self.cell_length_list)):
+                if self.cell_length_list[cx] is not None:
+                    self.cell_length_list[cx] = self.cell_length_list[cx] \
+                        if self.cell_length_list[cx] < new_length else new_length + padding_length
 
     def create_row_border(self, position):
         dash_list = []
