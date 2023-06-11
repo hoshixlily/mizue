@@ -22,6 +22,6 @@ setup(
         "Programming Language :: Python :: 3"
     ],
     packages=["mizue"],
-    package_data={"mizue": ["printer/*.py"]},
+    install_requires=["wcwidth"],
     include_package_data=True
 )

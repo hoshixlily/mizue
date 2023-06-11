@@ -1,6 +1,8 @@
 import enum
 import os
 
+from wcwidth import wcswidth, wcwidth
+
 from mizue.printer import Printer
 
 
@@ -186,6 +188,7 @@ class TablePrinter:
         if self.enumerated:
             self.align_list.insert(0, TablePrinter.Alignment.RIGHT)
         self.format_long_cells()
+        # self.formatted_table_data = self.table_data
 
     def _is_cjk(self, char): # CJK: Chinese, Japanese, Korean
         return any([r["from"] <= ord(char) <= r["to"] for r in self._ranges])
@@ -197,7 +200,8 @@ class TablePrinter:
         return not self._is_cjk(char) and ord(char) > 65536
 
     def _is_long_terminal_char(self, char):
-        return self._is_cjk(char) or self._is_long_unicode(char)
+        return wcswidth(char) == 2
+        # return self._is_cjk(char) or self._is_long_unicode(char)
 
     @staticmethod
     def _is_variation_selector(char):
@@ -215,9 +219,7 @@ class TablePrinter:
         return TablePrinter.BorderCharacterCodes.Basic
 
     def _get_terminal_length(self, text: str) -> int:
-        length = sum([2 if self._is_long_terminal_char(c) else 1 for c in text])
-        length = length + sum([1 if TablePrinter._is_variation_selector(c) else 0 for c in text])
-        length = length - sum([1 if self._is_half_width_cjk(c) else 0 for c in text])
+        length = sum([2 if wcwidth(c) == 2 else 1 for c in text])
         return length
 
     def _apply_enumeration(self):
@@ -334,7 +336,6 @@ class TablePrinter:
                 dash_list.append(middle)
         dash_list.append(right)
         return Printer.format_hex("".join(dash_list), self.border_color) if self.border_color else "".join(dash_list)
-
 
     def create_row(self, row: list, color: tuple[int, int, int] | str = None):
         row_list = []
