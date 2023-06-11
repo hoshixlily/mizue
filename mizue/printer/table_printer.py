@@ -1,15 +1,18 @@
 import enum
+import math
 import os
 
 from wcwidth import wcswidth, wcwidth
 
 from mizue.printer import Printer
+from mizue.util import Utility
 
 
 class TablePrinter:
     class Alignment(enum.Enum):
         LEFT = 1,
-        RIGHT = 2
+        RIGHT = 2,
+        CENTER = 3
 
     class RowBorderPosition(enum.Enum):
         TOP = 1,
@@ -200,18 +203,20 @@ class TablePrinter:
         #     self._auto_width.insert(0, True)
         self.cell_length_list = self.get_auto_column_cell_lengths()
 
-        # cell length list should be equal to the number of columns
         if len(self.cell_length_list) > len(self.table_data[0]):
             self.cell_length_list = self.cell_length_list[:len(self.table_data[0])]
 
         self.color_list += [None] * (len(self.table_data[0]) - offset - len(self.color_list))
         if self.enumerated:
             self.color_list.insert(0, None)
+
         self.align_list += [TablePrinter.Alignment.LEFT] * (len(self.table_data[0]) - offset - len(self.align_list))
         if self.enumerated:
-            self.align_list.insert(0, TablePrinter.Alignment.RIGHT)
+            self.align_list.insert(0, TablePrinter.Alignment.CENTER)
+
         if self.title_data and len(self.title_data) < len(self.table_data[0]):
             self.title_data += [""] * (len(self.table_data[0]) - len(self.title_data))
+
         self.format_long_cells()
         # self.formatted_table_data = self.table_data
 
@@ -273,7 +278,8 @@ class TablePrinter:
 
                 if remaining_chars_terminal_length != remaining_chars_normal_length:
                     if remaining_chars_terminal_length - 3 < cell_length:
-                        visible_length = remaining_chars_terminal_length - 3 - sum([2 if wcwidth(c) == 2 else 0 for c in remaining_chars])
+                        visible_length = remaining_chars_terminal_length - 3 - sum(
+                            [2 if wcwidth(c) == 2 else 0 for c in remaining_chars])
                     else:
                         diff = remaining_chars_terminal_length - remaining_chars_normal_length
                         visible_length = cell_length - diff - 3
@@ -339,6 +345,12 @@ class TablePrinter:
         for index, length in enumerate(max_lengths_list):
             if index < max_lengths and (self.cell_length_list[index] is None or self.cell_length_list[index] == 0):
                 self.cell_length_list[index] = length
+
+        terminal_length = Utility.get_terminal_width()
+        total_length = sum(self.cell_length_list) + (len(self.cell_length_list) * 3) + 1
+        if total_length > terminal_length:
+            self.cell_length_list[1:] = [int(terminal_length / len(self.cell_length_list))] * len(self.cell_length_list)
+
         return self.cell_length_list
 
     def create_row_border(self, position):
@@ -374,6 +386,11 @@ class TablePrinter:
             if self.align_list[index] is TablePrinter.Alignment.RIGHT:
                 cell_length = self._get_terminal_length(Printer.strip_ansi(cell))
                 row_list.append("".join([" "] * (self.cell_length_list[index] - cell_length)))
+            elif self.align_list[index] is TablePrinter.Alignment.CENTER:
+                cell_length = self._get_terminal_length(Printer.strip_ansi(cell))
+                length = self.cell_length_list[index]
+                txt = "".join([" "] * (int(math.floor((length - cell_length) / 2))))
+                row_list.append(txt)
 
             if index == 0 and self.enumerated:
                 cell_color = self.enumeration_color
@@ -394,6 +411,12 @@ class TablePrinter:
             if self.align_list[index] is TablePrinter.Alignment.LEFT:
                 cell_length = self._get_terminal_length(Printer.strip_ansi(cell_format))
                 row_list.append("".join([" "] * (self.cell_length_list[index] - cell_length)))
+            elif self.align_list[index] is TablePrinter.Alignment.CENTER:
+                cell_length = self._get_terminal_length(Printer.strip_ansi(cell_format))
+                length = self.cell_length_list[index]
+                txt = "".join([" "] * (int(math.ceil((length - cell_length) / 2))))
+                row_list.append(txt)
+
             row_list.append(" ")
         border = Printer.format_hex(border_style.VERTICAL,
                                     self.border_color) if self.border_color else border_style.VERTICAL
