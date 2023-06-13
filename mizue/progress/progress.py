@@ -1,4 +1,5 @@
 import sys
+from collections.abc import Callable
 from time import sleep
 
 from mizue.printer import Printer, TerminalColors
@@ -7,24 +8,29 @@ from mizue.util.stoppable_thread import StoppableThread
 
 
 class Progress:
-    def __init__(self, start: int = 0, end: int = 0, value: int = 0, width: int = 10):
-        self._start = start
+    def __init__(self, start: int = 0, end: int = 100, value: int = 0, width: int = 10):
+        self._active = False
+        self._color = TerminalColors.BRIGHT_WHITE
         self._end = end
-        self._value = value
-        self._width = width
+        self._info_callback: Callable[[int], str] | None = None
+        self._info_text = ""
+        self._interval = 0.1
+        self._label_text = ""
         self._spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
         self._spinner_end_symbol = "⠿"
         self._spinner_index = 0
+        self._start = start
         self._thread = None
-        self._active = False
-        self._label_text = ""
-        self._info_text = ""
-        self._color = TerminalColors.BRIGHT_WHITE
-        self._interval = 0.1
+        self._value = value
+        self._width = width
 
     def set_info(self, info: str) -> None:
         """Set the info text to be displayed after the progress bar"""
         self._info_text = info
+
+    def set_info_callback(self, callback: Callable[[int], str]) -> None:
+        """Set the callback function to be called to get the info text to be displayed after the progress bar"""
+        self._info_callback = callback
 
     def set_label(self, label: str) -> None:
         """Set the label text to be displayed before the progress bar"""
@@ -43,9 +49,9 @@ class Progress:
 
     def stop(self) -> None:
         """Stop the progress bar"""
-        sleep(0.5)
         self._active = False
         self._spinner_index = 0
+        sleep(1)
         self._thread.join()
         Utility.show_cursor()
 
@@ -100,8 +106,9 @@ class Progress:
         bar_end = "]"
         bar = bar_start + "#" * int(width) + " " * int((self._width - width)) + bar_end
         separator = " | " if len(self._info_text) > 0 else ""
+        info_text = self._info_text if self._info_callback is None else self._info_callback(self._value)
         progress_text = str.format("{} {} {} {}{}{}", self._label_text, bar, spinner_symbol, percentage, separator,
-                                   self._info_text)
+                                   info_text)
         if len(progress_text) > Utility.get_terminal_width():
             progress_text = str.format("{} {} {} {}{}", self._label_text, bar, spinner_symbol, percentage, '')
             if len(progress_text) > Utility.get_terminal_width():

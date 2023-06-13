@@ -1,6 +1,7 @@
 import enum
 import math
 import os
+import sys
 
 from wcwidth import wcswidth, wcwidth
 
@@ -38,6 +39,7 @@ class TablePrinter:
             return
         self._initialize()
         buffer = self._buffer_table()
+        sys.stdout.flush()
         print(buffer)
 
     @staticmethod

@@ -127,6 +127,11 @@ class Printer:
         return re.sub(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])', '', text)
 
     @staticmethod
+    def strip_colors(text: str) -> str:
+        stripped_text = re.sub(r'\x1b[\[\d;]+m', '', text)
+        return Printer.strip_ansi(stripped_text)
+
+    @staticmethod
     def warning(text: str, bold: bool = False, underlined: bool = False) -> None:
         """Prints a warning message to the console."""
         Printer.print_ansi(Printer.format(text, TerminalColors.WARNING, bold, underlined))

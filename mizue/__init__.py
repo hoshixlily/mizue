@@ -2,6 +2,7 @@ from .util import utility, stoppable_thread
 from .printer import printer, terminal_colors, table_printer
 from .progress import progress
 from .file import fileutils
+from .network import downloader
 
 __all__ = [
     'stoppable_thread',
@@ -10,5 +11,6 @@ __all__ = [
     'printer',
     'table_printer',
     'fileutils',
-    'progress'
+    'progress',
+    'downloader'
 ]

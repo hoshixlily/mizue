@@ -1,1 +1,4 @@
-wcwidth
+requests~=2.31.0
+wcwidth~=0.2.6
+uuid~=1.30
+pathvalidate~=3.0.0
