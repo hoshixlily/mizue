@@ -10,8 +10,10 @@ import pathvalidate
 import requests
 
 from mizue.file import FileUtils
+from mizue.network.downloader.download_event import DownloadEvent, ProgressEventArgs
 from mizue.printer import Printer, TablePrinter, BorderStyle, Alignment
 from mizue.progress import Progress
+from mizue.util import EventListener
 
 
 class DownloadMetadata(TypedDict):
@@ -30,9 +32,16 @@ class ProgressData(TypedDict):
     uuid: str
 
 
-class Downloader:
+class Downloader(EventListener):
     def __init__(self):
-        self.output_path = "."
+
+        self.bulk_download_report = True
+        """True to enable bulk download report after the download. This only applies when downloading multiple files."""
+
+        self.no_progress = False
+        """True to disable progress bar output"""
+
+        self.output_path = ".."
         """The output path for the downloaded files"""
 
         self.retry_count = 1
@@ -40,9 +49,6 @@ class Downloader:
 
         self.parallel_downloads = 5
         """The number of parallel downloads"""
-
-        self.silent = False
-        """True to disable all output. If verbose is enabled, this will be ignored."""
 
         self.timeout = 10
         """The timeout in seconds for the connection"""
@@ -58,14 +64,14 @@ class Downloader:
             Printer.info(f'Connecting to {url}...')
 
         response = self._get_response(url)
-        progress = Progress(0, 100, 0, 10)
+        progress = Progress(0, 0, 0, 10)  # IMPORTANT: Max value should be set to the file size inside _progress_init
 
         if response and response.status_code == 200:
-            metadata = self._get_download_metadata(response)
+            metadata = self._get_download_metadata(response, output_path)
             self._download(response, metadata, output_path, lambda init_data: self._progress_init(init_data, progress),
                            lambda progress_data: self._progress_callback(progress_data, progress))
         else:
-            if not self.silent:
+            if self.verbose:
                 Printer.error(f'Error while downloading: {response.status_code}')
 
     def _get_response(self, url: str) -> requests.Response | None:
@@ -78,29 +84,40 @@ class Downloader:
         response: requests.Response | None = None
         while fetching:
             try:
-                response = requests.get(url, timeout=self.timeout, headers=headers)
+                response = requests.get(url, stream=True, timeout=self.timeout, headers=headers)
                 fetching = False
             except requests.exceptions.Timeout as e:
-                # if not self.silent:
-                #     Printer.error(f'Connection timed out: {e}')
+                if self.verbose:
+                    Printer.error(f'Connection timed out: {e}')
                 fetch_try_count += 1
                 if fetch_try_count > self.retry_count:
                     fetching = False
                 continue
         return response
 
-    @staticmethod
-    def _progress_callback(data: ProgressData, progress: Progress):
-        info = f'{data["percent"]}% [{FileUtils.get_readable_file_size(data["downloaded"])}/{FileUtils.get_readable_file_size(data["filesize"])}]'
-        progress.update_value(data["percent"])
-        progress.set_info(info)
-        if data["finished"]:
-            progress.stop()
+    def _progress_callback(self, data: ProgressData, progress: Progress):
+        if not self.no_progress:
+            info = f'[{FileUtils.get_readable_file_size(data["downloaded"])}/{FileUtils.get_readable_file_size(data["filesize"])}]'
+            progress.update_value(data["downloaded"])
+            progress.set_info(info)
+        self._fire_event(DownloadEvent.PROGRESS,
+                         ProgressEventArgs(downloaded=data["downloaded"], percent=data["percent"]))
 
-    @staticmethod
-    def _progress_init(data: DownloadMetadata, progress: Progress):
+        if data["finished"]:
+            if not self.no_progress:
+                info = f'[{FileUtils.get_readable_file_size(data["filesize"])}]'
+                progress.update_value(data["filesize"])
+                progress.set_info(info)
+                time.sleep(1)
+                progress.stop()
+            self._fire_event(DownloadEvent.COMPLETED)
+
+    def _progress_init(self, data: DownloadMetadata, progress: Progress):
         Printer.info(f'Downloading {data["filename"]} ({FileUtils.get_readable_file_size(data["filesize"])})')
-        progress.start()
+        if not self.no_progress:
+            progress.update_max(data["filesize"])
+            progress.start()
+        self._fire_event(DownloadEvent.STARTED)
 
     @staticmethod
     def _download(response: requests.Response, metadata: DownloadMetadata, output_path: str = None,
@@ -170,18 +187,19 @@ class Downloader:
             count_data: [int, int] = [0, len(metadata_list)]
             progress = Progress(0, total_size, 0, 10)
 
-            success_table_data = map(lambda m: [m["filename"], FileUtils.get_readable_file_size(m["filesize"])],
-                                     metadata_list)
-            failure_table_data = map(lambda r: [r.url, "Failed"],
-                                     failed_responses)
-            table_data = list(success_table_data) + list(failure_table_data)
-            table_printer = TablePrinter(table_data)
-            table_printer.title_data = ["Filename", "Filesize/Status"]
-            table_printer.align_list = [Alignment.LEFT, Alignment.RIGHT]
-            table_printer.enumerated = True
-            table_printer.border_style = BorderStyle.SINGLE
-            table_printer.border_color = "#FFCC75"
-            table_printer.enumeration_color = "#FFCC75"
+            if self.bulk_download_report:
+                success_table_data = map(lambda m: [m["filename"], FileUtils.get_readable_file_size(m["filesize"])],
+                                         metadata_list)
+                failure_table_data = map(lambda r: [r.url, "Failed"],
+                                         failed_responses)
+                table_data = list(success_table_data) + list(failure_table_data)
+                table_printer = TablePrinter(table_data)
+                table_printer.title_data = ["Filename", "Filesize/Status"]
+                table_printer.align_list = [Alignment.LEFT, Alignment.RIGHT]
+                table_printer.enumerated = True
+                table_printer.border_style = BorderStyle.SINGLE
+                table_printer.border_color = "#FFCC75"
+                table_printer.enumeration_color = "#FFCC75"
 
             download_pool = ThreadPool(self.parallel_downloads)
             init_callback = lambda init_data: self._download_list_progress_init(progress)
@@ -202,35 +220,41 @@ class Downloader:
                 Printer.success(
                     f'{os.linesep}Downloaded {len(metadata_list)} files ({FileUtils.get_readable_file_size(total_size)})')
 
-            table_printer.print()
+            if self.bulk_download_report:
+                table_printer.print()
 
-    @staticmethod
-    def _download_list_progress_init(progress: Progress):
-        progress.start()
-        pass
+    def _download_list_progress_init(self, progress: Progress):
+        if not self.no_progress:
+            progress.start()
+        self._fire_event(DownloadEvent.STARTED)
 
-    @staticmethod
-    def _download_list_progress_callback(data: ProgressData, progress: Progress,
+    def _download_list_progress_callback(self, data: ProgressData, progress: Progress,
                                          size_dict: dict[str, list[int, int]],
                                          count_data: [int, int],
                                          completion_status: dict[str, bool]):
         size_dict[data["uuid"]][0] = data["downloaded"]
-
         downloaded = sum([s[0] for s in size_dict.values()])
         total_size = sum([s[1] for s in size_dict.values()])
         total_size_str = FileUtils.get_readable_file_size(total_size)
-        info = f'[{FileUtils.get_readable_file_size(downloaded)}/{total_size_str}] ({count_data[0]}/{count_data[1]})'
-        progress.update_value(downloaded)
-        progress.set_info(info)
+        percent = int((downloaded / total_size) * 100)
+
+        if not self.no_progress:
+            info = f'[{FileUtils.get_readable_file_size(downloaded)}/{total_size_str}] ({count_data[0]}/{count_data[1]})'
+            progress.update_value(downloaded)
+            progress.set_info(info)
+
+        self._fire_event(DownloadEvent.PROGRESS, ProgressEventArgs(downloaded=downloaded, percent=percent))
+
         if data["finished"]:
             completion_status[data["uuid"]] = True
             count_data[0] += 1
-            if count_data[0] == count_data[1]:
+            if count_data[0] == count_data[1] and not self.no_progress:
                 progress.update_value(total_size)
                 info = f'[{FileUtils.get_readable_file_size(downloaded)}/{total_size_str}] ({count_data[0]}/{count_data[1]})'
                 progress.set_info(info)
                 time.sleep(1)
                 progress.stop()
+            self._fire_event(DownloadEvent.COMPLETED)
 
     def _get_download_metadata(self, response: requests.Response, output_path: str) -> DownloadMetadata:
         filename = self._get_filename(response)

@@ -64,6 +64,10 @@ class Progress:
         self._thread.join()
         Utility.show_cursor()
 
+    def update_max(self, end: int) -> None:
+        """Update the maximum value of the progress bar"""
+        self._end = end
+
     def update_value(self, value: int) -> None:
         """Update the value of the progress bar"""
         self._value = value
@@ -107,12 +111,12 @@ class Progress:
         bar = bar_start + "#" * int(width) + " " * int((self._width - width)) + bar_end
         separator = " | " if len(self._info_text) > 0 else ""
         info_text = self._info_text if self._info_callback is None else self._info_callback(self._value)
-        progress_text = str.format("{} {} {} {}{}{}", self._label_text, bar, spinner_symbol, percentage, separator,
+        progress_text = str.format("{}{} {} {}{}{}", self._label_text, bar, spinner_symbol, percentage, separator,
                                    info_text)
         if len(progress_text) > Utility.get_terminal_width():
-            progress_text = str.format("{} {} {} {}{}", self._label_text, bar, spinner_symbol, percentage, '')
+            progress_text = str.format("{}{} {} {}{}", self._label_text, bar, spinner_symbol, percentage, '')
             if len(progress_text) > Utility.get_terminal_width():
-                progress_text = str.format("{} {} {} {}{}", '', bar, spinner_symbol, percentage, '')
+                progress_text = str.format("{}{} {} {}{}", '', bar, spinner_symbol, percentage, '')
         progress_text = self._get_colored_text(progress_text)
         return progress_text
 
