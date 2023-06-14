@@ -7,15 +7,6 @@ class _CursorInfo(ctypes.Structure):
 
 
 class Utility:
-    @staticmethod
-    def is_elevated() -> bool:
-        """Returns whether the current process is elevated."""
-        return ctypes.windll.shell32.IsUserAnAdmin() != 0
-
-    @staticmethod
-    def is_caps_lock_on() -> bool:
-        """Returns whether the caps lock key is on."""
-        return ctypes.windll.user32.GetKeyState(0x14) != 0
 
     @staticmethod
     def get_terminal_size() -> tuple[int, int]:
@@ -38,6 +29,16 @@ class Utility:
         info = _CursorInfo()
         info.visible = False
         ctypes.windll.kernel32.SetConsoleCursorInfo(ctypes.windll.kernel32.GetStdHandle(-11), ctypes.byref(info))
+
+    @staticmethod
+    def is_elevated() -> bool:
+        """Returns whether the current process is elevated."""
+        return ctypes.windll.shell32.IsUserAnAdmin() != 0
+
+    @staticmethod
+    def is_caps_lock_on() -> bool:
+        """Returns whether the caps lock key is on."""
+        return ctypes.windll.user32.GetKeyState(0x14) != 0
 
     @staticmethod
     def show_cursor() -> None:
