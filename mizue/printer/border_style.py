@@ -1,7 +1,7 @@
-import enum
+from enum import Enum
 
 
-class BorderStyle(enum.Enum):
+class BorderStyle(Enum):
     BASIC = 1,
     SINGLE = 2,
     DOUBLE = 3,

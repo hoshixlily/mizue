@@ -1,13 +1,11 @@
-import enum
-import math
 import os
 import sys
+from enum import Enum
+from math import ceil, floor
 
 from wcwidth import wcswidth, wcwidth
 
-from mizue.printer import Printer
-from mizue.printer.alignment import Alignment
-from mizue.printer.border_style import BorderStyle
+from mizue.printer import BorderStyle, Printer, Alignment
 from mizue.util import Utility
 
 
@@ -113,7 +111,7 @@ class TablePrinter:
             elif self.align_list[index] is Alignment.CENTER:
                 cell_length = self._get_terminal_length(Printer.strip_ansi(cell))
                 length = self.cell_length_list[index]
-                txt = "".join([" "] * (int(math.floor((length - cell_length) / 2))))
+                txt = "".join([" "] * (int(floor((length - cell_length) / 2))))
                 row_list.append(txt)
 
             if index == 0 and self.enumerated:
@@ -138,7 +136,7 @@ class TablePrinter:
             elif self.align_list[index] is Alignment.CENTER:
                 cell_length = self._get_terminal_length(Printer.strip_ansi(cell_format))
                 length = self.cell_length_list[index]
-                txt = "".join([" "] * (int(math.ceil((length - cell_length) / 2))))
+                txt = "".join([" "] * (int(ceil((length - cell_length) / 2))))
                 row_list.append(txt)
 
             row_list.append(" ")
@@ -146,17 +144,6 @@ class TablePrinter:
                                     self.border_color) if self.border_color else border_style.VERTICAL
         row_list.append(border)
         return "".join(row_list)
-
-    def _get_border_style(self):
-        if self.border_style == BorderStyle.SINGLE:
-            return BorderCharacterCodes.Single
-        if self.border_style == BorderStyle.DOUBLE:
-            return BorderCharacterCodes.Double
-        if self.border_style == BorderStyle.BASIC:
-            return BorderCharacterCodes.Basic
-        if self.border_style == BorderStyle.EMPTY:
-            return BorderCharacterCodes.Empty
-        return BorderCharacterCodes.Basic
 
     @staticmethod
     def _find_max_cell_length(row_data: list):
@@ -244,6 +231,17 @@ class TablePrinter:
         self._resize_columns_to_fit()
         return self.cell_length_list
 
+    def _get_border_style(self):
+        if self.border_style == BorderStyle.SINGLE:
+            return BorderCharacterCodes.Single
+        if self.border_style == BorderStyle.DOUBLE:
+            return BorderCharacterCodes.Double
+        if self.border_style == BorderStyle.BASIC:
+            return BorderCharacterCodes.Basic
+        if self.border_style == BorderStyle.EMPTY:
+            return BorderCharacterCodes.Empty
+        return BorderCharacterCodes.Basic
+
     @staticmethod
     def _get_terminal_length(text: str) -> int:
         length = sum([2 if wcwidth(c) == 2 else 1 for c in text])
@@ -327,7 +325,7 @@ class TablePrinter:
         short_columns = [x for x in self.cell_length_list if x is not None and x < new_length]
         long_columns = [x for x in self.cell_length_list if x is not None and x > new_length]
         remaining_length = terminal_length - (new_length * len(short_columns) if len(short_columns) > 0 else 0)
-        padding_length = int(math.floor(remaining_length / len(long_columns))) if len(long_columns) > 0 else 0
+        padding_length = int(floor(remaining_length / len(long_columns))) if len(long_columns) > 0 else 0
 
         if total_length > terminal_length:
             for cx in range(1, len(self.cell_length_list)):
@@ -389,7 +387,8 @@ class BorderCharacterCodes:
         HORIZONTAL = ""
         VERTICAL = ""
 
-class RowBorderPosition(enum.Enum):
+
+class RowBorderPosition(Enum):
     TOP = 1,
     MIDDLE = 2,
     BOTTOM = 3

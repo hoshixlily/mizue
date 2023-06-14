@@ -8,12 +8,8 @@ class Printer:
     _newline: bool = True
 
     @staticmethod
-    def formatted(text: str) -> bool:
-        return str(text).endswith(TerminalColors.END_CHAR)
-
-    @staticmethod
     def apply_background(message, bg_color):
-        end_char = '' if Printer.formatted(message) else TerminalColors.END_CHAR
+        end_char = '' if Printer._formatted(message) else TerminalColors.END_CHAR
         msg = str.format("{}{}{}", bg_color, message, end_char)
         return msg
 
@@ -85,7 +81,7 @@ class Printer:
     @staticmethod
     def print_ansi(text: str, color: str = TerminalColors.WHITE, bold: bool = False, underlined: bool = False) -> None:
         """Prints a message to the console."""
-        formatted_text = text if Printer.formatted(text) else Printer.format(text, color, bold, underlined)
+        formatted_text = text if Printer._formatted(text) else Printer.format(text, color, bold, underlined)
         print(formatted_text, end='\n' if Printer._newline else '', flush=True)
 
     @staticmethod
@@ -100,8 +96,8 @@ class Printer:
     def print_rgb(text: str, text_rgb: tuple[int, int, int], bg_rgb: tuple[int, int, int] | None = None,
                   bold: bool = False, underlined: bool = False, no_end: bool = False) -> None:
         """Prints a message to the console."""
-        formatted_text = text if Printer.formatted(text) else Printer.format_rgb(text, text_rgb, bg_rgb, bold,
-                                                                                 underlined, no_end)
+        formatted_text = text if Printer._formatted(text) else Printer.format_rgb(text, text_rgb, bg_rgb, bold,
+                                                                                  underlined, no_end)
         print(formatted_text, end='\n' if Printer._newline else '', flush=True)
 
     @staticmethod
@@ -135,3 +131,7 @@ class Printer:
     def warning(text: str, bold: bool = False, underlined: bool = False) -> None:
         """Prints a warning message to the console."""
         Printer.print_ansi(Printer.format(text, TerminalColors.WARNING, bold, underlined))
+
+    @staticmethod
+    def _formatted(text: str) -> bool:
+        return str(text).endswith(TerminalColors.END_CHAR)
