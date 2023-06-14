@@ -11,7 +11,7 @@ with open(path.join(here, "README.md")) as f:
 
 setup(
     name="mizue",
-    version="0.1.12",
+    version="0.1.13",
     description="A Python package for various utilities",
     long_description=long_description,
     long_description_content_type="text/markdown",
