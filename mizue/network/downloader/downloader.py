@@ -115,7 +115,7 @@ class Downloader(EventListener):
     def _progress_init(self, data: DownloadMetadata, progress: Progress):
         Printer.info(f'Downloading {data["filename"]} ({FileUtils.get_readable_file_size(data["filesize"])})')
         if not self.no_progress:
-            progress.update_max(data["filesize"])
+            progress.set_end_value(data["filesize"])
             progress.start()
         self._fire_event(DownloadEvent.STARTED)
 

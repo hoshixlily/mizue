@@ -24,6 +24,10 @@ class Progress:
         self._value = value
         self._width = width
 
+    def set_end_value(self, end: int) -> None:
+        """Update the maximum value of the progress bar"""
+        self._end = end
+
     def set_info(self, info: str) -> None:
         """Set the info text to be displayed after the progress bar"""
         self._info_text = info
@@ -64,30 +68,9 @@ class Progress:
         self._thread.join()
         Utility.show_cursor()
 
-    def update_max(self, end: int) -> None:
-        """Update the maximum value of the progress bar"""
-        self._end = end
-
     def update_value(self, value: int) -> None:
         """Update the value of the progress bar"""
         self._value = value
-
-    def _print(self) -> None:
-        progress_text = ""
-        while self._active:
-            progress_text = self._get_progress_text()
-            self._spinner_index += 1
-            sys.stdout.write(
-                u"\u001b[K")  # Erase from cursor to end of line [http://matthieu.benoit.free.fr/68hc11/vt100.htm]
-            sys.stdout.write(
-                u"\u001b[1000D" + progress_text)  # Move terminal cursor 1000 characters left (go to start of line)
-            sys.stdout.flush()
-            sleep(self._interval)
-        progress_text = progress_text.translate({ord(x): self._spinner_end_symbol for x in self._spinner})
-        sys.stdout.write(
-            u"\u001b[K")  # Erase from cursor to end of line [http://matthieu.benoit.free.fr/68hc11/vt100.htm]
-        sys.stdout.write(
-            u"\u001b[1000D" + progress_text)  # Move terminal cursor 1000 characters left (go to start of line)
 
     def _get_bar_full_width(self) -> int:
         percentage = self._value * 100 / self._end
@@ -120,4 +103,19 @@ class Progress:
         progress_text = self._get_colored_text(progress_text)
         return progress_text
 
-
+    def _print(self) -> None:
+        progress_text = ""
+        while self._active:
+            progress_text = self._get_progress_text()
+            self._spinner_index += 1
+            sys.stdout.write(
+                u"\u001b[K")  # Erase from cursor to end of line [http://matthieu.benoit.free.fr/68hc11/vt100.htm]
+            sys.stdout.write(
+                u"\u001b[1000D" + progress_text)  # Move terminal cursor 1000 characters left (go to start of line)
+            sys.stdout.flush()
+            sleep(self._interval)
+        progress_text = progress_text.translate({ord(x): self._spinner_end_symbol for x in self._spinner})
+        sys.stdout.write(
+            u"\u001b[K")  # Erase from cursor to end of line [http://matthieu.benoit.free.fr/68hc11/vt100.htm]
+        sys.stdout.write(
+            u"\u001b[1000D" + progress_text)  # Move terminal cursor 1000 characters left (go to start of line)
