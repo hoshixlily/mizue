@@ -1,5 +1,6 @@
 import os
 import re
+import time
 from collections.abc import Callable
 from enum import Enum
 from math import ceil, floor
@@ -37,6 +38,8 @@ class Column:
         self.renderer = settings["renderer"] if "renderer" in settings else None
         self.title = settings["title"] if "title" in settings else ""
         self.width = settings["width"] if "width" in settings else None
+        if self.width is not None and self.width <= 0:
+            raise ValueError("The column width must be greater than zero")
 
 
 class Grid:
@@ -103,30 +106,6 @@ class Grid:
             row_buffer.append(border)
         return "".join(row_buffer)
 
-    def _format_cell_with_colors(self, rendered_cell: str, column_width: int) -> str:
-        color_parts = self._extract_colors(rendered_cell)
-        if len(color_parts) == 0:
-            return self._format_long_cell(rendered_cell, column_width)
-        else:
-            processed_width = 0
-            formatted_parts = []
-            for color_part in color_parts:
-                text = color_part[1]
-                text_width = wcswidth(text)
-                if processed_width + text_width <= column_width:
-                    formatted_text = f"{color_part[0]}{text}{color_part[2]}"
-                    formatted_parts.append(formatted_text)
-                    processed_width += text_width
-                    if processed_width == column_width:
-                        break
-                    print(formatted_text)
-                else:
-                    visible_text = self._format_long_cell(text, column_width - processed_width)
-                    formatted_text = f"{color_part[0]}{visible_text}{color_part[2]}"
-                    formatted_parts.append(formatted_text)
-                    break
-            return "".join(formatted_parts)
-
     def _create_row_border(self, position):
         dash_list = []
         border_style = self._get_border_style()
@@ -164,6 +143,29 @@ class Grid:
             max_width = max(max_width, length)
         return max_width
 
+    def _format_cell_with_colors(self, rendered_cell: str, column_width: int) -> str:
+        color_parts = self._split_text_into_color_parts(rendered_cell)
+        if len(color_parts) == 0:
+            return self._format_long_cell(rendered_cell, column_width)
+        else:
+            processed_width = 0
+            formatted_parts = []
+            for color_part in color_parts:
+                text = color_part[1]
+                text_width = wcswidth(text)
+                if processed_width + text_width <= column_width:
+                    formatted_text = f"{color_part[0]}{text}{color_part[2]}"
+                    formatted_parts.append(formatted_text)
+                    processed_width += text_width
+                    if processed_width == column_width:
+                        break
+                else:
+                    visible_text = self._format_long_cell(text, column_width - processed_width)
+                    formatted_text = f"{color_part[0]}{visible_text}{color_part[2]}"
+                    formatted_parts.append(formatted_text)
+                    break
+            return "".join(formatted_parts)
+
     @staticmethod
     def _format_long_cell(cell: str, col_width: int) -> str:
         if col_width <=3:
@@ -196,16 +198,16 @@ class Grid:
         if not has_any_wide_char:
             if len(cell) <= col_width:
                 return cell
-            return cell[:col_width - 3] + "..."
+            return cell[:col_width - 1] + "…"
         else:
             first_part = cell[:text_length]
             first_part_original = cell[:text_length]
             first_part_terminal_width = Grid._get_terminal_width_of_cell(first_part)
             full_width = Grid._get_terminal_width_of_cell(cell)
-            while first_part_terminal_width > col_width - 3:
+            while first_part_terminal_width > col_width - 1:
                 first_part = first_part[:-1]
                 first_part_terminal_width = Grid._get_terminal_width_of_cell(first_part)
-            return first_part + "..." \
+            return first_part + "…" \
                 if len(first_part) < len(first_part_original) or full_width > col_width \
                 else first_part
 
@@ -234,11 +236,6 @@ class Grid:
         # remove all the color codes and other formatting codes, also remove ansi escape codes
         return re.sub(r"\x1b\[[0-9;]*m", "", rendered_cell)
 
-    def _extract_colors(self, text: str) -> list[tuple[str, str, str]]:
-        matcher = re.compile(r"(\x1b\[[0-9;]*m)(.*?)(\x1b\[00m)")
-        groups = matcher.findall(text)
-        return groups if groups else []
-
     @staticmethod
     def _get_right_cell_space(column: Column, cell: str) -> str:
         cell_terminal_width = Grid._get_terminal_width_of_cell(cell)
@@ -263,7 +260,6 @@ class Grid:
             if current_width > max_width:
                 return text[:text.index(ch)]
         return text
-
 
     @staticmethod
     def _has_variation_selector(text: str) -> bool:
@@ -296,19 +292,35 @@ class Grid:
         self.columns = columns
         self._resize_columns_to_fit()
 
-    def _resize_columns_to_fit(self):
+    def _resize_columns_to_fit2(self):
         terminal_width = Utility.get_terminal_width()
         total_column_width = sum(column.width for column in self.columns)
-        new_column_width = int(terminal_width / len(self.columns))
-        short_columns = [column for column in self.columns if column.width < new_column_width]
-        long_columns = [column for column in self.columns if column.width >= new_column_width]
-        remaining_width = terminal_width - (new_column_width * len(short_columns) if len(short_columns) > 0 else 0)
-        padding_width = int(floor(remaining_width / len(long_columns))) if len(long_columns) > 0 else 0
-
         if total_column_width > terminal_width:
-            for cx in range(1, len(self.columns)):
-                self.columns[cx].width = self.columns[cx].width \
-                    if self.columns[cx].width < new_column_width else new_column_width + padding_width
+            for cx in range(0, len(self.columns)):
+                self.columns[cx].width = int((terminal_width * self.columns[cx].width) / total_column_width) - 4
+
+    def _resize_columns_to_fit(self):
+        terminal_width = Utility.get_terminal_width()
+        print(terminal_width)
+        new_column_width = int(terminal_width / len(self.columns))
+        long_columns = [column for column in self.columns if column.width >= new_column_width]
+
+        remaining_width = 0
+        for column in self.columns:
+            if column.width > new_column_width:
+                column.width = new_column_width
+            else:
+                remaining_width += (new_column_width - column.width - 4 * len(self.columns))
+
+        padding = int(remaining_width / len(long_columns)) if len(long_columns) > 0 else 0
+        for column in long_columns:
+            column.width += padding
+
+    @staticmethod
+    def _split_text_into_color_parts(text: str) -> list[tuple[str, str, str]]:
+        matcher = re.compile(r"(\x1b\[[0-9;]*m)(.*?)(\x1b\[00m)")
+        groups = matcher.findall(text)
+        return groups if groups else []
 
 
 class BorderCharacterCodes:
