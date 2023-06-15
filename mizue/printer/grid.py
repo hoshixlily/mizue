@@ -1,4 +1,6 @@
 import os
+import re
+import time
 from collections.abc import Callable
 from enum import Enum
 from math import ceil, floor
@@ -36,17 +38,17 @@ class Column:
         self.renderer = settings["renderer"] if "renderer" in settings else None
         self.title = settings["title"] if "title" in settings else ""
         self.width = settings["width"] if "width" in settings else None
+        if self.width is not None and self.width <= 0:
+            raise ValueError("The column width must be greater than zero")
 
 
 class Grid:
     def __init__(self, columns: list[ColumnSettings], data: list[list[str]]):
-        self._ranges = []
         self.border_color = None
         self.border_style = BorderStyle.BASIC
         self.columns = []
         self.data = data
         self.enumerated = False
-        self._init_unicode_ranges()
         self._prepare_columns(columns)
 
     def print(self) -> None:
@@ -80,14 +82,15 @@ class Grid:
             row_buffer.append(" ")
         for index, cell in enumerate(row):
             column = self.columns[index]
+
             if column.renderer is not None:
                 rendered_cell = column.renderer(CellRendererArgs(cell=cell, index=index, is_header=is_header_row,
                                                                  formatter=self._format_long_cell,
                                                                  width=column.width))
-                default_render = False
+
+                rendered_cell = self._format_cell_with_colors(rendered_cell, column.width)
             else:
-                rendered_cell = self._format_long_cell(cell, column.width)
-                default_render = True
+                rendered_cell = self._format_cell_with_colors(cell, column.width)
 
             border = Printer.format_hex(border_style.VERTICAL, self.border_color) \
                 if self.border_color else border_style.VERTICAL
@@ -95,9 +98,10 @@ class Grid:
                 row_buffer.append(f"{border}")
 
             row_buffer.append(" ")
-            row_buffer.append(self._get_left_cell_space(column, rendered_cell if default_render else cell))
+            row_buffer.append(self._get_left_cell_space(column, self._get_raw_cell_text_after_rendering(rendered_cell)))
             row_buffer.append(rendered_cell)
-            row_buffer.append(self._get_right_cell_space(column, rendered_cell if default_render else cell))
+            row_buffer.append(
+                self._get_right_cell_space(column, self._get_raw_cell_text_after_rendering(rendered_cell)))
             row_buffer.append(" ")
             row_buffer.append(border)
         return "".join(row_buffer)
@@ -139,40 +143,73 @@ class Grid:
             max_width = max(max_width, length)
         return max_width
 
+    def _format_cell_with_colors(self, rendered_cell: str, column_width: int) -> str:
+        color_parts = self._split_text_into_color_parts(rendered_cell)
+        if len(color_parts) == 0:
+            return self._format_long_cell(rendered_cell, column_width)
+        else:
+            processed_width = 0
+            formatted_parts = []
+            for color_part in color_parts:
+                text = color_part[1]
+                text_width = wcswidth(text)
+                if processed_width + text_width <= column_width:
+                    formatted_text = f"{color_part[0]}{text}{color_part[2]}"
+                    formatted_parts.append(formatted_text)
+                    processed_width += text_width
+                    if processed_width == column_width:
+                        break
+                else:
+                    visible_text = self._format_long_cell(text, column_width - processed_width)
+                    formatted_text = f"{color_part[0]}{visible_text}{color_part[2]}"
+                    formatted_parts.append(formatted_text)
+                    break
+            return "".join(formatted_parts)
+
     @staticmethod
     def _format_long_cell(cell: str, col_width: int) -> str:
-        terminal_length = Grid._get_terminal_width_of_cell(cell)
-        cell_length = col_width
-        remaining_chars = Printer.strip_ansi(cell[0:cell_length - 3])
+        if col_width <=3:
+            if col_width == 1:
+                return cell[0] if wcwidth(cell[0]) == 1 else "…"
+            if col_width == 2:
+                return cell[0] + cell[1] if wcwidth(cell[0]) == 1 and wcwidth(cell[1]) == 1 else "…"
+            if col_width == 3:
+                if wcwidth(cell[0]) == 2:
+                    return cell[0] + "…"
+                if wcwidth(cell[0]) == 1 and wcwidth(cell[1]) == 1:
+                    return cell[0] + cell[1] + "…"
+                if wcwidth(cell[0]) == 1 and wcwidth(cell[1]) == 2:
+                    return "…"
+                if wcwidth(cell[0]) == 1 and wcwidth(cell[1]) == 0:  # symbol + variation selector
+                    return cell[0] + "…"
 
-        remaining_chars_normal_length = len(remaining_chars)
-        remaining_chars_terminal_length = Grid._get_terminal_width_of_cell(remaining_chars)
-
-        if remaining_chars_terminal_length != remaining_chars_normal_length:
-            if remaining_chars_terminal_length - 3 < cell_length:
-                visible_length = remaining_chars_terminal_length - 3 - sum(
-                    [2 if wcwidth(c) == 2 else 0 for c in remaining_chars])
-                if visible_length <= 0:
-                    visible_length = remaining_chars_normal_length - 3
+        text_width = 0
+        text_length = 0
+        for char in cell:
+            text_length += 1
+            if Grid._is_wide_char(char):
+                text_width += 2
             else:
-                diff = remaining_chars_terminal_length - remaining_chars_normal_length
-                visible_length = cell_length - diff - 3
-        else:
-            visible_length = cell_length - 3
+                text_width += 1
+            if text_width == col_width - 3 or text_width == col_width - 2:
+                break
 
-        # if not self._auto_width[col_index]:
-        if cell_length > 3:
-            formatted_cell = cell[:visible_length] + "..." if terminal_length > cell_length else cell
+        has_any_wide_char = any([True for char in cell if Grid._is_wide_char(char)])
+        if not has_any_wide_char:
+            if len(cell) <= col_width:
+                return cell
+            return cell[:col_width - 1] + "…"
         else:
-            formatted_cell = "".join(["." for _ in range(cell_length)])
-        return formatted_cell
-        # formatted_row.append(formatted_cell)
-        # else:
-            # if terminal_length > cell_length:
-            #     formatted_row.append(cell[:visible_length] + "...")
-            # else:
-            #     formatted_row.append(str(cell))
-
+            first_part = cell[:text_length]
+            first_part_original = cell[:text_length]
+            first_part_terminal_width = Grid._get_terminal_width_of_cell(first_part)
+            full_width = Grid._get_terminal_width_of_cell(cell)
+            while first_part_terminal_width > col_width - 1:
+                first_part = first_part[:-1]
+                first_part_terminal_width = Grid._get_terminal_width_of_cell(first_part)
+            return first_part + "…" \
+                if len(first_part) < len(first_part_original) or full_width > col_width \
+                else first_part
 
     def _get_border_style(self):
         if self.border_style == BorderStyle.SINGLE:
@@ -195,6 +232,11 @@ class Grid:
         return ""
 
     @staticmethod
+    def _get_raw_cell_text_after_rendering(rendered_cell: str) -> str:
+        # remove all the color codes and other formatting codes, also remove ansi escape codes
+        return re.sub(r"\x1b\[[0-9;]*m", "", rendered_cell)
+
+    @staticmethod
     def _get_right_cell_space(column: Column, cell: str) -> str:
         cell_terminal_width = Grid._get_terminal_width_of_cell(cell)
         if column.alignment == Alignment.LEFT:
@@ -208,28 +250,20 @@ class Grid:
         return sum([2 if wcswidth(char) == 2 else 1 for char in text])
 
     @staticmethod
+    def _get_visible_text(text: str, max_width: int) -> str:
+        current_width = 0
+        for ch in text:
+            if Grid._is_wide_char(ch):
+                current_width += 2
+            else:
+                current_width += 1
+            if current_width > max_width:
+                return text[:text.index(ch)]
+        return text
+
+    @staticmethod
     def _has_variation_selector(text: str) -> bool:
         return any(Grid._is_variation_selector(c) for c in text)
-
-    def _init_unicode_ranges(self):
-        self._ranges = [
-            {"from": ord(u"\u3300"), "to": ord(u"\u33ff")},  # compatibility ideographs
-            {"from": ord(u"\ufe30"), "to": ord(u"\ufe4f")},  # compatibility ideographs
-            {"from": ord(u"\uf900"), "to": ord(u"\ufaff")},  # compatibility ideographs
-            {"from": ord(u"\U0002F800"), "to": ord(u"\U0002fa1f")},  # compatibility ideographs
-            {"from": ord(u'\u3000'), "to": ord(u'\u303F')},  # Japanese Punctuation
-            {'from': ord(u'\u3040'), 'to': ord(u'\u309f')},  # Japanese Hiragana
-            {"from": ord(u"\u30a0"), "to": ord(u"\u30ff")},  # Japanese Katakana
-            {"from": ord(u"\u2e80"), "to": ord(u"\u2eff")},  # cjk radicals supplement
-            {"from": ord(u"\u4e00"), "to": ord(u"\u9fff")},
-            {"from": ord(u"\u3400"), "to": ord(u"\u4dbf")},
-            {"from": ord(u"\uac00"), "to": ord(u"\ud7af")},  # hangul syllables
-            {"from": ord(u"\uff00"), "to": ord(u"\uffef")},  # full width unicode chars
-            {"from": ord(u"\U00020000"), "to": ord(u"\U0002a6df")},
-            {"from": ord(u"\U0002a700"), "to": ord(u"\U0002b73f")},
-            {"from": ord(u"\U0002b740"), "to": ord(u"\U0002b81f")},
-            {"from": ord(u"\U0002b820"), "to": ord(u"\U0002ceaf")}  # included as of Unicode 8.0
-        ]
 
     @staticmethod
     def _is_variation_selector(char: str) -> bool:
@@ -258,19 +292,35 @@ class Grid:
         self.columns = columns
         self._resize_columns_to_fit()
 
-    def _resize_columns_to_fit(self):
+    def _resize_columns_to_fit2(self):
         terminal_width = Utility.get_terminal_width()
         total_column_width = sum(column.width for column in self.columns)
-        new_column_width = int(terminal_width / len(self.columns))
-        short_columns = [column for column in self.columns if column.width < new_column_width]
-        long_columns = [column for column in self.columns if column.width >= new_column_width]
-        remaining_width = terminal_width - (new_column_width * len(short_columns) if len(short_columns) > 0 else 0)
-        padding_width = int(floor(remaining_width / len(long_columns))) if len(long_columns) > 0 else 0
-
         if total_column_width > terminal_width:
-            for cx in range(1, len(self.columns)):
-                self.columns[cx].width = self.columns[cx].width \
-                    if self.columns[cx].width < new_column_width else new_column_width + padding_width
+            for cx in range(0, len(self.columns)):
+                self.columns[cx].width = int((terminal_width * self.columns[cx].width) / total_column_width) - 4
+
+    def _resize_columns_to_fit(self):
+        terminal_width = Utility.get_terminal_width()
+        print(terminal_width)
+        new_column_width = int(terminal_width / len(self.columns))
+        long_columns = [column for column in self.columns if column.width >= new_column_width]
+
+        remaining_width = 0
+        for column in self.columns:
+            if column.width > new_column_width:
+                column.width = new_column_width
+            else:
+                remaining_width += (new_column_width - column.width - 4 * len(self.columns))
+
+        padding = int(remaining_width / len(long_columns)) if len(long_columns) > 0 else 0
+        for column in long_columns:
+            column.width += padding
+
+    @staticmethod
+    def _split_text_into_color_parts(text: str) -> list[tuple[str, str, str]]:
+        matcher = re.compile(r"(\x1b\[[0-9;]*m)(.*?)(\x1b\[00m)")
+        groups = matcher.findall(text)
+        return groups if groups else []
 
 
 class BorderCharacterCodes:
