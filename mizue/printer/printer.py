@@ -14,33 +14,33 @@ class Printer:
         return msg
 
     @staticmethod
-    def format(text: str, color: str = None, bold: bool = False, underlined: bool = False, no_end: bool = False) -> str:
+    def format(text: str, color: str = None, bold: bool = False, underlined: bool = False) -> str:
         """Formats a string with the specified color, boldness, and underlining."""
         color = color if color is not None else ''
         bolded = TerminalColors.BOLD if bold else ''
         underlined = TerminalColors.UNDERLINE if underlined else ''
-        end = TerminalColors.END_CHAR if not no_end else ''
+        end = TerminalColors.END_CHAR
         return f'{color}{bolded}{underlined}{text}{end}'
 
     @staticmethod
     def format_hex(text: str, text_hex: str, bg_hex: str | None = None,
-                   bold: bool = False, underlined: bool = False, no_end: bool = False) -> str:
+                   bold: bool = False, underlined: bool = False) -> str:
         """Formats a string with the specified color, boldness, and underlining."""
         if bg_hex is None:
             text_rgb: tuple = Printer.hex_to_rgb(text_hex)
-            return Printer.format_rgb(text, text_rgb, None, bold, underlined, no_end)
+            return Printer.format_rgb(text, text_rgb, None, bold, underlined)
         else:
             text_rgb: tuple = Printer.hex_to_rgb(text_hex)
             bg_rgb: tuple = Printer.hex_to_rgb(bg_hex)
-            return Printer.format_rgb(text, text_rgb, bg_rgb, bold, underlined, no_end)
+            return Printer.format_rgb(text, text_rgb, bg_rgb, bold, underlined)
 
     @staticmethod
     def format_rgb(text: str, text_rgb: tuple[int, int, int], bg_rgb: tuple[int, int, int] | None = None,
-                   bold: bool = False, underlined: bool = False, no_end: bool = False) -> str:
+                   bold: bool = False, underlined: bool = False) -> str:
         """Formats a string with the specified color, boldness, and underlining."""
         bolded = TerminalColors.BOLD if bold else ''
         underlined = TerminalColors.UNDERLINE if underlined else ''
-        end = TerminalColors.END_CHAR if not no_end else ''
+        end = TerminalColors.END_CHAR
         if bg_rgb is None:
             return f'\033[38;2;{text_rgb[0]};{text_rgb[1]};{text_rgb[2]}m{bolded}{underlined}{text}{end}'
         else:
@@ -79,26 +79,20 @@ class Printer:
         if Printer._newline:
             print()
 
-    # @staticmethod
-    # def print_ansi(text: str, color: str = '', bold: bool = False, underlined: bool = False) -> None:
-    #     """Prints a message to the console."""
-    #     formatted_text = text if Printer._formatted(text) else Printer.format(text, color, bold, underlined)
-    #     print(formatted_text, end='\n' if Printer._newline else '', flush=True)
-
     @staticmethod
-    def print_hex(text: str, text_hex: str, bg_hex: str | None = None, bold: bool = False, underlined: bool = False,
-                  no_end: bool = False) -> None:
+    def print_hex(text: str, text_hex: str, bg_hex: str | None = None,
+                  bold: bool = False, underlined: bool = False) -> None:
         """Prints a message to the console."""
         rgb: tuple = Printer.hex_to_rgb(text_hex)
         bg_rgb: tuple = Printer.hex_to_rgb(bg_hex) if bg_hex is not None else None
-        Printer.print_rgb(text, rgb, bg_rgb, bold, underlined, no_end)
+        Printer.print_rgb(text, rgb, bg_rgb, bold, underlined)
 
     @staticmethod
     def print_rgb(text: str, text_rgb: tuple[int, int, int], bg_rgb: tuple[int, int, int] | None = None,
-                  bold: bool = False, underlined: bool = False, no_end: bool = False) -> None:
+                  bold: bool = False, underlined: bool = False) -> None:
         """Prints a message to the console."""
         formatted_text = text if Printer._formatted(text) else Printer.format_rgb(text, text_rgb, bg_rgb, bold,
-                                                                                  underlined, no_end)
+                                                                                  underlined)
         print(formatted_text, end='\n' if Printer._newline else '', flush=True)
 
     @staticmethod
