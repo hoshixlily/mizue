@@ -14,8 +14,9 @@ class Printer:
         return msg
 
     @staticmethod
-    def format(text: str, color: str, bold: bool = False, underlined: bool = False, no_end: bool = False) -> str:
+    def format(text: str, color: str = None, bold: bool = False, underlined: bool = False, no_end: bool = False) -> str:
         """Formats a string with the specified color, boldness, and underlining."""
+        color = color if color is not None else ''
         bolded = TerminalColors.BOLD if bold else ''
         underlined = TerminalColors.UNDERLINE if underlined else ''
         end = TerminalColors.END_CHAR if not no_end else ''
@@ -49,7 +50,7 @@ class Printer:
     @staticmethod
     def error(text: str, bold: bool = False, underlined: bool = False) -> None:
         """Prints an error message to the console."""
-        Printer.print_ansi(Printer.format(text, TerminalColors.ERROR, bold, underlined))
+        Printer.print_hex(text, TerminalColors.ERROR, bold=bold, underlined=underlined)
 
     @staticmethod
     def get_color_string(color: str | tuple[int, int, int]):
@@ -67,7 +68,7 @@ class Printer:
     @staticmethod
     def info(text: str, bold: bool = False, underlined: bool = False) -> None:
         """Prints an info message to the console."""
-        Printer.print_ansi(Printer.format(text, TerminalColors.INFO, bold, underlined))
+        Printer.print_hex(text, TerminalColors.INFO, bold=bold, underlined=underlined)
 
     @staticmethod
     def prevent_newline(prevent: bool = True) -> None:
@@ -78,11 +79,11 @@ class Printer:
         if Printer._newline:
             print()
 
-    @staticmethod
-    def print_ansi(text: str, color: str = TerminalColors.WHITE, bold: bool = False, underlined: bool = False) -> None:
-        """Prints a message to the console."""
-        formatted_text = text if Printer._formatted(text) else Printer.format(text, color, bold, underlined)
-        print(formatted_text, end='\n' if Printer._newline else '', flush=True)
+    # @staticmethod
+    # def print_ansi(text: str, color: str = '', bold: bool = False, underlined: bool = False) -> None:
+    #     """Prints a message to the console."""
+    #     formatted_text = text if Printer._formatted(text) else Printer.format(text, color, bold, underlined)
+    #     print(formatted_text, end='\n' if Printer._newline else '', flush=True)
 
     @staticmethod
     def print_hex(text: str, text_hex: str, bg_hex: str | None = None, bold: bool = False, underlined: bool = False,
@@ -115,7 +116,7 @@ class Printer:
     @staticmethod
     def success(text: str, bold: bool = False, underlined: bool = False) -> None:
         """Prints a success message to the console."""
-        Printer.print_ansi(Printer.format(text, TerminalColors.SUCCESS, bold, underlined))
+        Printer.print_hex(text, TerminalColors.SUCCESS, bold=bold, underlined=underlined)
 
     @staticmethod
     def strip_ansi(text: str) -> str:
@@ -130,7 +131,7 @@ class Printer:
     @staticmethod
     def warning(text: str, bold: bool = False, underlined: bool = False) -> None:
         """Prints a warning message to the console."""
-        Printer.print_ansi(Printer.format(text, TerminalColors.WARNING, bold, underlined))
+        Printer.print_hex(text, TerminalColors.WARNING, bold=bold, underlined=underlined)
 
     @staticmethod
     def _formatted(text: str) -> bool:

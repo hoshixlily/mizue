@@ -10,7 +10,6 @@ from mizue.util.stoppable_thread import StoppableThread
 class Progress:
     def __init__(self, start: int = 0, end: int = 100, value: int = 0, width: int = 10):
         self._active = False
-        self._color = TerminalColors.BRIGHT_WHITE
         self._end = end
         self._info_callback: Callable[[int], str] | None = None
         self._info_text = ""
