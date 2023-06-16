@@ -1,8 +1,8 @@
 from enum import Enum
-from typing import TypedDict
+from dataclasses import dataclass
 
 
-class DownloadEvent(str, Enum):
+class DownloadEventType(str, Enum):
     COMPLETED = "completed"
     """The download has been completed"""
 
@@ -16,27 +16,33 @@ class DownloadEvent(str, Enum):
     """The download has been started"""
 
 
-class ProgressEventArgs(TypedDict):
-    downloaded: int
-    percent: int
-
-
-class DownloadCompleteEventArgs(TypedDict):
+@dataclass(frozen=True)
+class DownloadBaseEvent:
     filename: str
     filepath: str
-    filesize: int
     url: str
 
 
-class DownloadFailureEventArgs(TypedDict):
-    exception: Exception | None
+@dataclass(frozen=True)
+class ProgressEventArgs(DownloadBaseEvent):
+    downloaded: int
+    filesize: int
+    percent: int
+
+
+@dataclass(frozen=True)
+class DownloadCompleteEvent(DownloadBaseEvent):
+    filesize: int
+
+
+@dataclass(frozen=True)
+class DownloadFailureEvent:
+    exception: BaseException | None
     reason: str
     status_code: int | None
     url: str
 
 
-class DownloadStartEventArgs(TypedDict):
-    filename: str
-    filepath: str
+@dataclass(frozen=True)
+class DownloadStartEvent(DownloadBaseEvent):
     filesize: int
-    url: str

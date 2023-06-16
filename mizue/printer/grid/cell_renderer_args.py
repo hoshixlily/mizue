@@ -1,7 +1,8 @@
-from typing import TypedDict
+from dataclasses import dataclass
 
 
-class CellRendererArgs(TypedDict):
+@dataclass
+class CellRendererArgs:
     cell: str
     index: int
     is_header: bool

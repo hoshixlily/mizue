@@ -1,3 +1,4 @@
+import os
 import sys
 from collections.abc import Callable
 from time import sleep
@@ -52,15 +53,16 @@ class Progress:
 
     def stop(self) -> None:
         """Stop the progress bar"""
+        sleep(1)
         self._active = False
         self._spinner_index = 0
-        sleep(1)
         self._thread.join()
         Utility.show_cursor()
 
     def terminate(self) -> None:
         """Terminate the progress bar.
             This method is generally used when the progress bar is needed to be stopped (e.g. on Ctrl+C)"""
+        sleep(1)
         self._active = False
         self._spinner_index = 0
         self._thread.stop()
@@ -75,14 +77,6 @@ class Progress:
         percentage = self._value * 100 / self._end
         bar_width = int(percentage * self._width / 100)
         return bar_width
-
-    def _get_colored_text(self, character: str) -> str:
-        if self._value < 40:
-            return Printer.format(character, TerminalColors.BRIGHT_RED)
-        elif self._value < 80:
-            return Printer.format(character, TerminalColors.BRIGHT_YELLOW)
-        else:
-            return Printer.format(character, TerminalColors.BRIGHT_GREEN)
 
     def _get_progress_text(self) -> str:
         width = self._get_bar_full_width()
@@ -99,7 +93,6 @@ class Progress:
             progress_text = str.format("{}{} {} {}{}", self._label_text, bar, spinner_symbol, percentage, '')
             if len(progress_text) > Utility.get_terminal_width():
                 progress_text = str.format("{}{} {} {}{}", '', bar, spinner_symbol, percentage, '')
-        progress_text = self._get_colored_text(progress_text)
         return progress_text
 
     def _print(self) -> None:
@@ -113,8 +106,9 @@ class Progress:
                 u"\u001b[1000D" + progress_text)  # Move terminal cursor 1000 characters left (go to start of line)
             sys.stdout.flush()
             sleep(self._interval)
-        progress_text = progress_text.translate({ord(x): self._spinner_end_symbol for x in self._spinner})
-        sys.stdout.write(
-            u"\u001b[K")  # Erase from cursor to end of line [http://matthieu.benoit.free.fr/68hc11/vt100.htm]
-        sys.stdout.write(
-            u"\u001b[1000D" + progress_text)  # Move terminal cursor 1000 characters left (go to start of line)
+        # sys.stdout.write(os.linesep)
+        # progress_text = progress_text.translate({ord(x): self._spinner_end_symbol for x in self._spinner})
+        # sys.stdout.write(
+        #     u"\u001b[K")  # Erase from cursor to end of line [http://matthieu.benoit.free.fr/68hc11/vt100.htm]
+        # sys.stdout.write(
+        #     u"\u001b[1000D" + progress_text)  # Move terminal cursor 1000 characters left (go to start of line)

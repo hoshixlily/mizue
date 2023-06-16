@@ -1,14 +1,14 @@
-from .download_event import DownloadEvent, ProgressEventArgs, DownloadStartEventArgs, DownloadFailureEventArgs, \
-    DownloadCompleteEventArgs
+from .download_event import DownloadEventType, ProgressEventArgs, DownloadStartEvent, DownloadFailureEvent, \
+    DownloadCompleteEvent
 from .downloader import Downloader
 from .downloader_tool import DownloaderTool
 
 __all__ = [
-    'DownloadEvent',
+    'DownloadEventType',
     'ProgressEventArgs',
-    'DownloadStartEventArgs',
-    'DownloadFailureEventArgs',
-    'DownloadCompleteEventArgs',
+    'DownloadStartEvent',
+    'DownloadFailureEvent',
+    'DownloadCompleteEvent',
     'Downloader',
     'DownloaderTool'
 ]
