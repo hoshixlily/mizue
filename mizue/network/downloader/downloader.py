@@ -11,7 +11,7 @@ import requests
 
 from mizue.file import FileUtils
 from mizue.network.downloader.download_event import DownloadEvent, ProgressEventArgs
-from mizue.printer import Printer, TablePrinter, BorderStyle, Alignment
+from mizue.printer import Printer
 from mizue.progress import Progress
 from mizue.util import EventListener
 
@@ -187,20 +187,6 @@ class Downloader(EventListener):
             count_data: [int, int] = [0, len(metadata_list)]
             progress = Progress(0, total_size, 0, 10)
 
-            if self.bulk_download_report:
-                success_table_data = map(lambda m: [m["filename"], FileUtils.get_readable_file_size(m["filesize"])],
-                                         metadata_list)
-                failure_table_data = map(lambda r: [r.url, "Failed"],
-                                         failed_responses)
-                table_data = list(success_table_data) + list(failure_table_data)
-                table_printer = TablePrinter(table_data)
-                table_printer.title_data = ["Filename", "Filesize/Status"]
-                table_printer.align_list = [Alignment.LEFT, Alignment.RIGHT]
-                table_printer.enumerated = True
-                table_printer.border_style = BorderStyle.SINGLE
-                table_printer.border_color = "#FFCC75"
-                table_printer.enumeration_color = "#FFCC75"
-
             download_pool = ThreadPool(self.parallel_downloads)
             init_callback = lambda init_data: self._download_list_progress_init(progress)
             progress_callback = lambda progress_data: self._download_list_progress_callback(progress_data, progress,
@@ -220,8 +206,6 @@ class Downloader(EventListener):
                 Printer.success(
                     f'{os.linesep}Downloaded {len(metadata_list)} files ({FileUtils.get_readable_file_size(total_size)})')
 
-            if self.bulk_download_report:
-                table_printer.print()
 
     def _download_list_progress_init(self, progress: Progress):
         if not self.no_progress:
