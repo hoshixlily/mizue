@@ -58,7 +58,6 @@ class Grid:
 
             if column.renderer is not None:
                 rendered_cell = column.renderer(CellRendererArgs(cell=cell, index=index, is_header=is_header_row,
-                                                                 formatter=self._format_long_cell,
                                                                  width=column.width))
 
                 rendered_cell = self._format_cell_with_colors(rendered_cell, column.width)
@@ -90,7 +89,7 @@ class Grid:
             left = border_style.BOTTOMLEFT
             middle = border_style.BOTTOMMIDDLE
             right = border_style.BOTTOMRIGHT
-        elif position is RowBorderPosition.MIDDLE:
+        else:
             left = border_style.LEFTMIDDLE
             middle = border_style.MIDDLEMIDDLE
             right = border_style.RIGHTMIDDLE
