@@ -15,6 +15,8 @@ from .download_event import DownloadEventType, DownloadFailureEvent, DownloadCom
 
 class Downloader(EventListener):
     def __init__(self):
+        self._running = False
+
         self.output_path = "."
         """The output path for the downloaded files"""
 
@@ -35,6 +37,9 @@ class Downloader(EventListener):
         else:
             self._fire_failure_event(url, response, exception=None)
 
+    def stop(self):
+        self._running = False
+
     def _download(self, response: requests.Response, metadata: DownloadMetadata, output_path: str = None,
                   progress_init: Callable[[DownloadMetadata], None] = None,
                   progress_callback: Callable[[ProgressData], None] = None):
@@ -42,10 +47,14 @@ class Downloader(EventListener):
             os.makedirs(output_path, exist_ok=True)
         if progress_init:
             progress_init(metadata)
+        self._running = True
         try:
             with open(metadata.filepath, 'wb') as f:
                 downloaded = 0
                 for chunk in response.iter_content(chunk_size=1024):
+                    if not self._running:
+                        print("Download cancelled")
+                        break
                     response.raw.decode_content = True
                     chunk_size = len(chunk)
                     f.write(chunk)
@@ -63,22 +72,28 @@ class Downloader(EventListener):
                             uuid=metadata.uuid
                         )
                         progress_callback(progress_data)
-                if progress_callback:
-                    progress_data = ProgressData(
-                        downloaded=downloaded,
-                        filename=metadata.filename,
-                        filepath=metadata.filepath,
-                        filesize=metadata.filesize,
-                        percent=100,
-                        finished=True,
-                        url=metadata.url,
-                        uuid=metadata.uuid
-                    )
-                    progress_callback(progress_data)
+                if self._running:
+                    if progress_callback:
+                        progress_data = ProgressData(
+                            downloaded=downloaded,
+                            filename=metadata.filename,
+                            filepath=metadata.filepath,
+                            filesize=metadata.filesize,
+                            percent=100,
+                            finished=True,
+                            url=metadata.url,
+                            uuid=metadata.uuid
+                        )
+                        progress_callback(progress_data)
+                else:
+                    os.remove(metadata.filepath)
+                    self._fire_failure_event(metadata.url, response, exception=Exception("Download cancelled"))
         except KeyboardInterrupt as e:
             self._fire_failure_event(metadata.url, response, exception=e)
+            raise e
         except Exception as e:
             self._fire_failure_event(metadata.url, response, exception=e)
+            raise e
 
     def _fire_failure_event(self, url: str, response: requests.Response, exception: BaseException | None):
         self._fire_event(DownloadEventType.FAILED, DownloadFailureEvent(

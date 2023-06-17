@@ -1,3 +1,5 @@
+import concurrent.futures
+import multiprocessing
 import os
 import time
 
@@ -11,6 +13,8 @@ from mizue.progress import Progress
 class DownloaderTool:
     def __init__(self):
         self._bulk_download_size = 0
+        self._downloaded_count = 0
+        self._total_download_count = 0
         self.progress: Progress | None = None
 
     def download(self, url: str, output_path: str):
@@ -20,6 +24,51 @@ class DownloaderTool:
         downloader.add_event(DownloadEventType.COMPLETED, lambda event: self._on_download_complete(event))
         downloader.add_event(DownloadEventType.FAILED, lambda event: self._on_download_failure(event))
         downloader.download(url, output_path)
+
+    def download_bulk(self, urls: list[str], output_path: str, parallel: int = 4):
+        self.progress = Progress(start=0, end=len(urls), value=0)
+        self.progress.set_label("Downloading: ")
+        self.progress.start()
+        self._downloaded_count = 0
+        self._total_download_count = len(urls)
+        download_dict = {}
+        downloaders = []
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=parallel) as executor:
+            try:
+                responses: list[concurrent.futures.Future] = []
+                for url in list(set(urls)):
+                    downloader = Downloader()
+                    downloader.add_event(DownloadEventType.PROGRESS,
+                                         lambda event: self._on_bulk_download_progress(event, download_dict))
+                    downloader.add_event(DownloadEventType.FAILED, lambda event: self._on_bulk_download_failed(event))
+                    downloaders.append(downloader)
+                    responses.append(executor.submit(downloader.download, url, output_path))
+                for response in concurrent.futures.as_completed(responses):
+                    self._downloaded_count += 1
+                    self.progress.update_value(self._downloaded_count)
+                    self.progress.set_info(self._get_bulk_progress_info(download_dict))
+                executor.shutdown(wait=True)
+            except KeyboardInterrupt:
+                for downloader in downloaders:
+                    downloader.stop()
+                self.progress.stop()
+                Printer.info(f"{os.linesep}Keyboard interrupt detected. Waiting for ongoing downloads to finish...")
+                executor.shutdown(wait=False, cancel_futures=True)
+        self.progress.stop()
+
+    def _get_bulk_progress_info(self, download_dict: dict):
+        file_progress_text = f'[{self._downloaded_count}/{self._total_download_count}]'
+        size_text = FileUtils.get_readable_file_size(sum(download_dict.values()))
+        return f'{file_progress_text} [{size_text}]'
+
+    def _on_bulk_download_failed(self, event: DownloadFailureEvent):
+        pass
+        # print(f"Failed to download {event.url}")
+
+    def _on_bulk_download_progress(self, event: ProgressEventArgs, download_dict: dict):
+        download_dict[event.url] = event.downloaded
+        self.progress.set_info(self._get_bulk_progress_info(download_dict))
 
     def _on_download_complete(self, event: DownloadCompleteEvent):
         self.progress.update_value(event.filesize)
