@@ -23,7 +23,6 @@ class Grid:
         self.cell_renderer: Callable[[CellRendererArgs], str] = lambda args: Grid._get_default_cell_renderer(args)
         self.columns = []
         self.data = data
-        self.enumerated = False
         self._prepare_columns(columns)
 
     def print(self) -> None:
@@ -46,16 +45,8 @@ class Grid:
     def _create_row(self, row: list[str], is_header_row: bool) -> str:
         border_style = self._get_border_style()
         row_buffer = []
-        if self.enumerated:
-            header_text = "#" if is_header_row else str(self.data.index(row) + 1)
-            row_buffer.append(f"{border_style.VERTICAL} ")
-            row_buffer.append(self._get_left_cell_space(self.columns[0], str(self.data.index(row))))
-            row_buffer.append(header_text)
-            row_buffer.append(self._get_right_cell_space(self.columns[0], str(self.data.index(row))))
-            row_buffer.append(" ")
-            row_buffer.append(border_style.VERTICAL)
-            row_buffer.append(" ")
-        for index, cell in enumerate(row):
+        for index, cell_value in enumerate(row):
+            cell = str(cell_value)
             column = self.columns[index]
 
             renderer = self._get_cell_renderer(column)
@@ -107,9 +98,9 @@ class Grid:
     def _find_max_cell_width(self, column: Column) -> int:
         max_width = len(column.title)
         for row in self.data:
-            cell = row[column.index]
+            cell = str(row[column.index])
             length = 0
-            for char in cell:
+            for char in str(cell):
                 if Grid._is_wide_char(char):
                     length += 2
                 else:
@@ -147,6 +138,8 @@ class Grid:
             if col_width == 1:
                 return cell[0] if wcwidth(cell[0]) == 1 else "…"
             if col_width == 2:
+                if len(cell) == 1:
+                    return cell[0] if wcwidth(cell[0]) == 1 else "…"
                 return cell[0] + cell[1] if wcwidth(cell[0]) == 1 and wcwidth(cell[1]) == 1 else "…"
             if col_width == 3:
                 if wcwidth(cell[0]) == 2:
@@ -261,15 +254,6 @@ class Grid:
 
     def _prepare_columns(self, column_data: list[ColumnSettings]):
         columns: list[Column] = []
-        if self.enumerated:
-            columns.append(Column(
-                settings=ColumnSettings(
-                    alignment=Alignment.RIGHT,
-                    title="#",
-                    width=len(self.data)
-                )
-            ))
-            columns[0].index = 0
         for i, column_setting in enumerate(column_data):
             column = Column(settings=column_setting)
             column.index = i
