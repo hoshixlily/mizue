@@ -1,5 +1,6 @@
 from enum import Enum
 from dataclasses import dataclass
+from typing import Optional
 
 
 class DownloadEventType(str, Enum):
@@ -38,6 +39,7 @@ class DownloadCompleteEvent(DownloadBaseEvent):
 @dataclass(frozen=True)
 class DownloadFailureEvent:
     exception: BaseException | None
+    filepath: Optional[str]
     reason: str
     status_code: int | None
     url: str

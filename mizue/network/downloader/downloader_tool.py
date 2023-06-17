@@ -28,8 +28,9 @@ class DownloaderTool:
         self.progress: Progress | None = None
 
     def download(self, url: str, output_path: str):
+        filepath = []
         downloader = Downloader()
-        downloader.add_event(DownloadEventType.STARTED, lambda event: self._on_download_start(event))
+        downloader.add_event(DownloadEventType.STARTED, lambda event: self._on_download_start(event, filepath))
         downloader.add_event(DownloadEventType.PROGRESS, lambda event: self._on_download_progress(event))
         downloader.add_event(DownloadEventType.COMPLETED, lambda event: self._on_download_complete(event))
         downloader.add_event(DownloadEventType.FAILED, lambda event: self._on_download_failure(event))
@@ -39,6 +40,8 @@ class DownloaderTool:
             downloader.close()
             self.progress.stop()
             Printer.warning(f"{os.linesep}Keyboard interrupt detected. Cleaning up...")
+            if len(filepath) > 0:
+                os.remove(filepath[0])
             self._report_data.append(DownloadReport(url, 0, url))
         self._print_report()
 
@@ -147,10 +150,11 @@ class DownloaderTool:
         info = f'[{downloaded_info}/{filesize_info}]'
         self.progress.set_info(info)
 
-    def _on_download_start(self, event: DownloadStartEvent):
+    def _on_download_start(self, event: DownloadStartEvent, filepath: list[str]):
         self.progress = Progress(start=0, end=event.filesize, value=0)
         self._configure_progress()
         self.progress.start()
+        filepath.append(event.filepath)
 
     @staticmethod
     def _percentage_renderer(args: PercentageRendererArgs):

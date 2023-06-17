@@ -3,14 +3,14 @@ import urllib.parse
 import uuid
 from typing import Callable
 
-from pathvalidate import sanitize_filename
 import requests
+from pathvalidate import sanitize_filename
 
 from mizue.util import EventListener
-from .download_metadata import DownloadMetadata
-from .progress_data import ProgressData
 from .download_event import DownloadEventType, DownloadFailureEvent, DownloadCompleteEvent, DownloadStartEvent, \
     ProgressEventArgs
+from .download_metadata import DownloadMetadata
+from .progress_data import ProgressData
 
 
 class Downloader(EventListener):
@@ -99,17 +99,20 @@ class Downloader(EventListener):
                 else:
                     f.close()
                     os.remove(metadata.filepath)
-                    self._fire_failure_event(metadata.url, response, exception=Exception("Download cancelled"))
+                    self._fire_failure_event(metadata.url, response, exception=Exception("Download cancelled"),
+                                             filepath=metadata.filepath)
         except Exception as e:
-            self._fire_failure_event(metadata.url, response, exception=e)
+            self._fire_failure_event(metadata.url, response, exception=e, filepath=metadata.filepath)
             raise e
 
-    def _fire_failure_event(self, url: str, response: requests.Response, exception: BaseException | None):
+    def _fire_failure_event(self, url: str, response: requests.Response, exception: BaseException | None,
+                            filepath: str = None):
         self._fire_event(DownloadEventType.FAILED, DownloadFailureEvent(
             url=url,
             status_code=response.status_code if response else -1,
             reason=response.reason if response else "Unknown",
-            exception=exception
+            exception=exception,
+            filepath=filepath,
         ))
 
     def _get_download_metadata(self, response: requests.Response, output_path: str) -> DownloadMetadata:
