@@ -1,6 +1,7 @@
 import os
 import re
 from math import ceil, floor
+from typing import Callable
 
 from wcwidth import wcswidth, wcwidth
 
@@ -9,16 +10,17 @@ from mizue.util import Utility
 from .alignment import Alignment
 from .border_character_codes import BorderCharacterCodes
 from .border_style import BorderStyle
-from .column_settings import ColumnSettings
-from .row_border_position import RowBorderPosition
 from .cell_renderer_args import CellRendererArgs
 from .column import Column
+from .column_settings import ColumnSettings
+from .row_border_position import RowBorderPosition
 
 
 class Grid:
     def __init__(self, columns: list[ColumnSettings], data: list[list[str]]):
         self.border_color = None
         self.border_style = BorderStyle.BASIC
+        self.cell_renderer: Callable[[CellRendererArgs], str] = lambda args: Grid._get_default_cell_renderer(args)
         self.columns = []
         self.data = data
         self.enumerated = False
@@ -56,9 +58,10 @@ class Grid:
         for index, cell in enumerate(row):
             column = self.columns[index]
 
-            if column.renderer is not None:
-                rendered_cell = column.renderer(CellRendererArgs(cell=cell, index=index, is_header=is_header_row,
-                                                                 width=column.width))
+            renderer = self._get_cell_renderer(column)
+            if renderer is not None:
+                rendered_cell = renderer(CellRendererArgs(cell=cell, index=index, is_header=is_header_row,
+                                                          width=column.width))
 
                 rendered_cell = self._format_cell_with_colors(rendered_cell, column.width)
             else:
@@ -193,6 +196,17 @@ class Grid:
         if self.border_style == BorderStyle.EMPTY:
             return BorderCharacterCodes.Empty
         return BorderCharacterCodes.Basic
+
+    def _get_cell_renderer(self, column: Column):
+        if column.renderer:
+            return column.renderer
+        return self.cell_renderer
+
+    @staticmethod
+    def _get_default_cell_renderer(args: CellRendererArgs) -> str:
+        if args.is_header:
+            return Printer.format_hex(args.cell, '#FFCC75')
+        return args.cell
 
     @staticmethod
     def _get_left_cell_space(column: Column, cell: str) -> str:
