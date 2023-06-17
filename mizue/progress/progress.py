@@ -1,28 +1,43 @@
-import os
 import sys
-from collections.abc import Callable
 from time import sleep
 
-from mizue.printer import Printer, TerminalColors
+from mizue.printer import Printer
 from mizue.util import Utility
 from mizue.util.stoppable_thread import StoppableThread
+from .progress_renderer_args import ProgressBarRendererArgs, SpinnerRendererArgs, LabelRendererArgs, \
+    InfoSeparatorRendererArgs, InfoTextRendererArgs, PercentageRendererArgs
 
 
 class Progress:
-    def __init__(self, start: int = 0, end: int = 100, value: int = 0, width: int = 10):
+    def __init__(self, start: int = 0, end: int = 100, value: int = 0):
         self._active = False
         self._end = end
-        self._info_callback: Callable[[int], str] | None = None
         self._info_text = ""
         self._interval = 0.1
-        self._label_text = ""
-        self._spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+        self._spinner = [
+            "▹▹▹▹▹",
+            "▸▹▹▹▹",
+            "▹▸▹▹▹",
+            "▹▹▸▹▹",
+            "▹▹▹▸▹",
+            "▹▹▹▹▸"
+        ]
         self._spinner_end_symbol = "⠿"
         self._spinner_index = 0
         self._start = start
         self._thread = None
         self._value = value
-        self._width = width
+        self._width = 10
+
+        self.info_separator = " | "
+        self.info_separator_renderer = lambda args: self._info_separator_renderer(
+            args.separator)  # InfoSeparatorRendererArgs
+        self.info_text_renderer = lambda args: self._info_text_renderer(args.text)  # InfoTextRendererArgs
+        self.label = ""
+        self.label_renderer = lambda args: args.label  # LabelRendererArgs
+        self.percentage_renderer = lambda args: "{:.2f}%".format(args.percentage)  # PercentageRendererArgs
+        self.spinner_renderer = lambda args: args.spinner  # SpinnerRendererArgs
+        self.progress_bar_renderer = lambda args: self._progress_bar_renderer()  # ProgressBarRendererArgs
 
     def set_end_value(self, end: int) -> None:
         """Update the maximum value of the progress bar"""
@@ -31,14 +46,6 @@ class Progress:
     def set_info(self, info: str) -> None:
         """Set the info text to be displayed after the progress bar"""
         self._info_text = info
-
-    def set_info_callback(self, callback: Callable[[int], str]) -> None:
-        """Set the callback function to be called to get the info text to be displayed after the progress bar"""
-        self._info_callback = callback
-
-    def set_label(self, label: str) -> None:
-        """Set the label text to be displayed before the progress bar"""
-        self._label_text = label
 
     def set_update_interval(self, interval: float) -> None:
         """Set the update interval of the progress bar"""
@@ -79,24 +86,52 @@ class Progress:
         return bar_width
 
     def _get_progress_text(self) -> str:
-        width = self._get_bar_full_width()
-        percentage = "{:.2f}%".format(self._value * 100 / self._end)
-        spinner_symbol = self._spinner[self._spinner_index % len(self._spinner)]
-        bar_start = "["
-        bar_end = "]"
-        bar = bar_start + "#" * int(width) + " " * int((self._width - width)) + bar_end
-        separator = " | " if len(self._info_text) > 0 else ""
-        info_text = self._info_text if self._info_callback is None else self._info_callback(self._value)
-        progress_text = str.format("{}{} {} {}{}{}", self._label_text, bar, spinner_symbol, percentage, separator,
+        percentage_value = self._value * 100 / self._end
+        percentage = self.percentage_renderer(PercentageRendererArgs(percentage_value, self._value))
+        spinner_symbol = self.spinner_renderer(SpinnerRendererArgs(
+            spinner=self._spinner[self._spinner_index % len(self._spinner)],
+            value=self._value,
+            percentage=percentage_value
+        ))
+        bar_string = self._progress_bar_renderer()
+        bar = self.progress_bar_renderer(ProgressBarRendererArgs(
+            percentage=percentage_value,
+            text=bar_string,
+            value=self._value,
+            width=self._get_bar_full_width()
+        ))
+        label = self.label_renderer(LabelRendererArgs(
+            label=self.label,
+            value=self._value,
+            percentage=percentage_value
+        ))
+        separator = self.info_separator_renderer(InfoSeparatorRendererArgs(
+            separator=self.info_separator,
+            value=self._value,
+            percentage=percentage_value
+        ))
+        info_text = self.info_text_renderer(InfoTextRendererArgs(
+            text=self._info_text,
+            value=self._value,
+            percentage=percentage_value
+        ))
+        progress_text = str.format("{}{} {} {}{}{}", label, bar, spinner_symbol, percentage, separator,
                                    info_text)
-        if len(progress_text) > Utility.get_terminal_width():
-            progress_text = str.format("{}{} {} {}{}", self._label_text, bar, spinner_symbol, percentage, '')
-            if len(progress_text) > Utility.get_terminal_width():
+        text_length = len(Printer.strip_colors(progress_text))
+        if text_length > Utility.get_terminal_width():
+            progress_text = str.format("{}{} {} {}{}", label, bar, spinner_symbol, percentage, '')
+            if text_length > Utility.get_terminal_width():
                 progress_text = str.format("{}{} {} {}{}", '', bar, spinner_symbol, percentage, '')
         return progress_text
 
+    def _info_separator_renderer(self, info_text: str) -> str:
+        return self.info_separator if len(info_text) > 0 else ""
+
+    @staticmethod
+    def _info_text_renderer(info_text: str) -> str:
+        return info_text
+
     def _print(self) -> None:
-        progress_text = ""
         while self._active:
             progress_text = self._get_progress_text()
             self._spinner_index += 1
@@ -106,9 +141,10 @@ class Progress:
                 u"\u001b[1000D" + progress_text)  # Move terminal cursor 1000 characters left (go to start of line)
             sys.stdout.flush()
             sleep(self._interval)
-        # sys.stdout.write(os.linesep)
-        # progress_text = progress_text.translate({ord(x): self._spinner_end_symbol for x in self._spinner})
-        # sys.stdout.write(
-        #     u"\u001b[K")  # Erase from cursor to end of line [http://matthieu.benoit.free.fr/68hc11/vt100.htm]
-        # sys.stdout.write(
-        #     u"\u001b[1000D" + progress_text)  # Move terminal cursor 1000 characters left (go to start of line)
+
+    def _progress_bar_renderer(self):
+        bar_start = "⟪"
+        bar_end = "⟫"
+        width = self._get_bar_full_width()
+        bar = bar_start + "◆" * int(width) + " " * int((self._width - width)) + bar_end
+        return bar
