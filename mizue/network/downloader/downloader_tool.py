@@ -33,18 +33,18 @@ class DownloaderTool:
         downloader.add_event(DownloadEventType.PROGRESS, lambda event: self._on_download_progress(event))
         downloader.add_event(DownloadEventType.COMPLETED, lambda event: self._on_download_complete(event))
         downloader.add_event(DownloadEventType.FAILED, lambda event: self._on_download_failure(event))
-        downloader.download(url, output_path)
+        try:
+            downloader.download(url, output_path)
+        except KeyboardInterrupt:
+            downloader.close()
+            self.progress.stop()
+            Printer.warning(f"{os.linesep}Keyboard interrupt detected. Cleaning up...")
+            self._report_data.append(DownloadReport(url, 0, url))
         self._print_report()
 
     def download_bulk(self, urls: list[str], output_path: str, parallel: int = 4):
         self.progress = Progress(start=0, end=len(urls), value=0)
-        self.progress.info_separator_renderer = self._info_separator_renderer
-        self.progress.info_text_renderer = self._info_text_renderer
-        self.progress.label_renderer = self._label_renderer
-        self.progress.percentage_renderer = self._percentage_renderer
-        self.progress.progress_bar_renderer = self._progress_bar_renderer
-        self.progress.spinner_renderer = self._spinner_renderer
-        self.progress.label = "Downloading: "
+        self._configure_progress()
         self.progress.start()
         self._downloaded_count = 0
         self._total_download_count = len(urls)
@@ -73,6 +73,15 @@ class DownloaderTool:
                 executor.shutdown(wait=False, cancel_futures=True)
         self.progress.stop()
         self._print_report()
+
+    def _configure_progress(self):
+        self.progress.info_separator_renderer = self._info_separator_renderer
+        self.progress.info_text_renderer = self._info_text_renderer
+        self.progress.label_renderer = self._label_renderer
+        self.progress.percentage_renderer = self._percentage_renderer
+        self.progress.progress_bar_renderer = self._progress_bar_renderer
+        self.progress.spinner_renderer = self._spinner_renderer
+        self.progress.label = "Downloading: "
 
     @staticmethod
     def _get_basic_colored_text(text: str, percentage: float):
@@ -140,7 +149,7 @@ class DownloaderTool:
 
     def _on_download_start(self, event: DownloadStartEvent):
         self.progress = Progress(start=0, end=event.filesize, value=0)
-        self.progress.label = f'Downloading :: '
+        self._configure_progress()
         self.progress.start()
 
     @staticmethod

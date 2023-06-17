@@ -100,9 +100,6 @@ class Downloader(EventListener):
                     f.close()
                     os.remove(metadata.filepath)
                     self._fire_failure_event(metadata.url, response, exception=Exception("Download cancelled"))
-        except KeyboardInterrupt as e:
-            self._fire_failure_event(metadata.url, response, exception=e)
-            raise e
         except Exception as e:
             self._fire_failure_event(metadata.url, response, exception=e)
             raise e
