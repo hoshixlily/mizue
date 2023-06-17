@@ -32,17 +32,15 @@ class DownloaderTool:
         self._downloaded_count = 0
         self._total_download_count = len(urls)
         download_dict = {}
-        downloaders = []
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=parallel) as executor:
             try:
                 responses: list[concurrent.futures.Future] = []
+                downloader = Downloader()
+                downloader.add_event(DownloadEventType.PROGRESS,
+                                     lambda event: self._on_bulk_download_progress(event, download_dict))
+                downloader.add_event(DownloadEventType.FAILED, lambda event: self._on_bulk_download_failed(event))
                 for url in list(set(urls)):
-                    downloader = Downloader()
-                    downloader.add_event(DownloadEventType.PROGRESS,
-                                         lambda event: self._on_bulk_download_progress(event, download_dict))
-                    downloader.add_event(DownloadEventType.FAILED, lambda event: self._on_bulk_download_failed(event))
-                    downloaders.append(downloader)
                     responses.append(executor.submit(downloader.download, url, output_path))
                 for response in concurrent.futures.as_completed(responses):
                     self._downloaded_count += 1
@@ -50,8 +48,7 @@ class DownloaderTool:
                     self.progress.set_info(self._get_bulk_progress_info(download_dict))
                 executor.shutdown(wait=True)
             except KeyboardInterrupt:
-                for downloader in downloaders:
-                    downloader.stop()
+                downloader.close()
                 self.progress.stop()
                 Printer.info(f"{os.linesep}Keyboard interrupt detected. Waiting for ongoing downloads to finish...")
                 executor.shutdown(wait=False, cancel_futures=True)

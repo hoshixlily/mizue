@@ -15,7 +15,7 @@ from .download_event import DownloadEventType, DownloadFailureEvent, DownloadCom
 
 class Downloader(EventListener):
     def __init__(self):
-        self._running = False
+        self._alive = True
 
         self.output_path = "."
         """The output path for the downloaded files"""
@@ -26,10 +26,19 @@ class Downloader(EventListener):
         self.timeout = 10
         """The timeout in seconds for the connection"""
 
+    def close(self):
+        """
+        Closes the downloader. This will stop any ongoing downloads.
+
+        In order to download again, a new instance of the downloader must be created,
+        or the open() method must be called.
+        """
+        self._alive = False
+
     def download(self, url: str, output_path: str = None):
         path_to_save = output_path if output_path is not None and len(output_path) > 0 else self.output_path
-        response = self._get_response(url)
 
+        response = self._get_response(url)
         if response and response.status_code == 200:
             metadata = self._get_download_metadata(response, path_to_save)
             self._download(response, metadata, path_to_save, lambda init_data: self._progress_init(init_data),
@@ -37,8 +46,12 @@ class Downloader(EventListener):
         else:
             self._fire_failure_event(url, response, exception=None)
 
-    def stop(self):
-        self._running = False
+    def open(self):
+        """
+        Opens the downloader. This will allow downloads to be performed once again.
+        Use this method if the downloader has been closed via the close() method.
+        """
+        self._alive = True
 
     def _download(self, response: requests.Response, metadata: DownloadMetadata, output_path: str = None,
                   progress_init: Callable[[DownloadMetadata], None] = None,
@@ -47,13 +60,11 @@ class Downloader(EventListener):
             os.makedirs(output_path, exist_ok=True)
         if progress_init:
             progress_init(metadata)
-        self._running = True
         try:
             with open(metadata.filepath, 'wb') as f:
                 downloaded = 0
                 for chunk in response.iter_content(chunk_size=1024):
-                    if not self._running:
-                        print("Download cancelled")
+                    if not self._alive:
                         break
                     response.raw.decode_content = True
                     chunk_size = len(chunk)
@@ -72,7 +83,7 @@ class Downloader(EventListener):
                             uuid=metadata.uuid
                         )
                         progress_callback(progress_data)
-                if self._running:
+                if self._alive:
                     if progress_callback:
                         progress_data = ProgressData(
                             downloaded=downloaded,
@@ -86,6 +97,7 @@ class Downloader(EventListener):
                         )
                         progress_callback(progress_data)
                 else:
+                    f.close()
                     os.remove(metadata.filepath)
                     self._fire_failure_event(metadata.url, response, exception=Exception("Download cancelled"))
         except KeyboardInterrupt as e:
