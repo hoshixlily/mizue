@@ -89,12 +89,20 @@ jobs:
             exit 1
           fi
 
+      - name: Write release notes to file
+        run: |
+          echo "${{ env.release_notes }}" > release_notes.txt
+
       - name: Create GitHub release and upload package as asset
         if: success() && env.version_update != 'none'
         uses: softprops/action-gh-release@v1
         with:
           files: dist/*
-          body_path: <(echo "${{ env.release_notes }}")
+          body_path: release_notes.txt
           tag_name: ${{ env.current_version }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Remove release notes file after use
+        run:
+          rm release_notes.txt
