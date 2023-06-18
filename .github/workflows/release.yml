@@ -33,7 +33,7 @@ jobs:
         run: |
           version_update="none"
           release_notes=""
-          git log --pretty=format:"%B %an" | while read line; do
+          git log --pretty=format:"%B%x09%an" | while read line; do
             echo $line
             if [[ $line == *"GitHub Action"* ]]; then
               break
