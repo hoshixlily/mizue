@@ -40,13 +40,13 @@ jobs:
               break
             elif [[ $line == "fix!: "* || $line == "feat!: "* || $line == *"BREAKING CHANGE: "* ]]; then
               version_update="major"
-              release_notes+="- **${line%%:*}**: ${line#*: }  \n"
+              release_notes+="- **${line%%:*}**: ${line#*: }<br>"
             elif [[ $line == "feat: "* && version_update != "major" ]]; then
               version_update="minor"
-              release_notes+="- **${line%%:*}**: ${line#*: }  \n"
+              release_notes+="- **${line%%:*}**: ${line#*: }<br>"
             elif [[ $line == "fix: "* || $line == "docs: "* && version_update != "major" && version_update != "minor" ]]; then
               version_update="patch"
-              release_notes+="- **${line%%:*}**: ${line#*: }  \n"
+              release_notes+="- **${line%%:*}**: ${line#*: }<br>"
             fi
           done < <(git log --pretty=format:"%B %an" "$current_version..HEAD")
           echo "version_update=$version_update" >> $GITHUB_ENV
