@@ -3,9 +3,10 @@ from abc import ABC
 
 class EventListener(ABC):
     """Abstract class for event listeners"""
-    _event_id_counter: int = 0
-    _events: dict[str, list[callable]] = {}
-    _event_id_map: dict[int, [str, callable]] = {}
+    def __init__(self):
+        self._event_id_counter: int = 0
+        self._events: dict[str, list[callable]] = {}
+        self._event_id_map: dict[int, [str, callable]] = {}
 
     def add_event(self, event: str, callback: callable) -> int:
         """Add a callback to an event"""
