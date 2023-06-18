@@ -61,24 +61,32 @@ jobs:
         run: |
           bump2version --config-file .bumpversion.cfg --no-commit --no-tag ${{ env.version_update }}
 
+      - name: Extract current version from .bumpversion.cfg file
+        run: |
+          current_version=$(cat .bumpversion.cfg | grep current_version | sed 's/current_version = //')
+          echo "current_version=$current_version" >> $GITHUB_ENV
+
       - name: Build package
         if: env.version_update != 'none'
         run: |
           python setup.py sdist bdist_wheel
 
-      - name: Publish package to PyPI and create tag if successful
+      - name: Publish package to PyPI and create tag if successful, remove tag if failed
         if: env.version_update != 'none'
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
         run: |
-          twine upload dist/* && \
-          git commit -am "Bump version to $(cat .bumpversion.cfg | grep current_version | sed 's/current_version = //')" && \
-          git tag $(cat .bumpversion.cfg | grep current_version | sed 's/current_version = //') && \
-          git push && git push --tags || \
-          echo "Package upload failed, rolling back changes" && \
-          git reset --hard HEAD && \
-          git tag -d $(cat .bumpversion.cfg | grep current_version | sed 's/current_version = //')
+          if twine upload dist/*; then
+            git commit -am "Bump version to $current_version"
+            git tag $current_version
+            git push && git push --tags
+          else
+            echo "Package upload failed, rolling back changes"
+            git reset --hard HEAD && \
+            git tag -d $current_version
+            exit 1
+          fi
 
       - name: Create GitHub release and upload package as asset
         if: success() && env.version_update != 'none'
@@ -86,6 +94,6 @@ jobs:
         with:
           files: dist/*
           body: ${{ env.release_notes }}
-          tag_name: $(cat .bumpversion.cfg | grep current_version | sed 's/current_version = //')
+          tag_name: ${{ env.current_version }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
