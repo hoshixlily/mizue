@@ -33,6 +33,7 @@ jobs:
         run: |
           version_update="none"
           release_notes=""
+          current_version=$(cat .bumpversion.cfg | grep current_version | sed 's/current_version = //')
           while read line; do
             echo "$line"
             if [[ $line == *"Github Action"* ]]; then
@@ -47,7 +48,7 @@ jobs:
               version_update="patch"
               release_notes+="- **${line%%:*}**: ${line#*: }\n"
             fi
-          done < <(git log --pretty=format:"%B %an")
+          done < <(git log --pretty=format:"%B %an" "$current_version..HEAD")
           echo "version_update=$version_update" >> $GITHUB_ENV
           echo "release_notes=$release_notes" >> $GITHUB_ENV
 
@@ -93,7 +94,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: dist/*
-          body: ${{ env.release_notes }}
+          body_path: <(echo "${{ env.release_notes }}")
           tag_name: ${{ env.current_version }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
