@@ -40,10 +40,10 @@ jobs:
             elif [[ $line == "fix!: "* || $line == "feat!: "* || $line == *"BREAKING CHANGE: "* ]]; then
               version_update="major"
               release_notes+="- **${line%%:*}**: ${line#*: }\n"
-            elif [[ $line == "feat: "* ]]; then
+            elif [[ $line == "feat: "* && version_update != "major" ]]; then
               version_update="minor"
               release_notes+="- **${line%%:*}**: ${line#*: }\n"
-            elif [[ $line == "fix: "* || $line == "docs: "* ]]; then
+            elif [[ $line == "fix: "* || $line == "docs: "* && version_update != "major" && version_update != "minor" ]]; then
               version_update="patch"
               release_notes+="- **${line%%:*}**: ${line#*: }\n"
             fi
