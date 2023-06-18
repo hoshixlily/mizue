@@ -39,7 +39,7 @@ jobs:
 
       - name: Bump version and create tag
         run: |
-          bump2version ${{ steps.version_update.outputs.version_update }}
+          bump2version --config-file .bumpversion.cfg ${{ steps.version_update.outputs.version_update }}
           git push && git push --tags
 
       - name: Build package
