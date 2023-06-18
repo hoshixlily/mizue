@@ -15,6 +15,7 @@ from .progress_data import ProgressData
 
 class Downloader(EventListener):
     def __init__(self):
+        super().__init__()
         self._alive = True
 
         self.output_path = "."
@@ -135,9 +136,9 @@ class Downloader(EventListener):
             if filename:
                 return filename
         else:
-            unquoted_filename = urllib.parse.unquote(response.url.split("/")[-1], encoding='utf-8', errors='replace')
-            if unquoted_filename and "?" in unquoted_filename:
-                unquoted_filename = unquoted_filename[:unquoted_filename.rfind("?")]
+            url_filename = urllib.parse.urlparse(response.url)
+            filename = os.path.basename(url_filename.path)
+            unquoted_filename = urllib.parse.unquote_plus(filename, encoding='utf-8', errors='replace')
             if unquoted_filename:
                 return sanitize_filename(unquoted_filename)
         return None
