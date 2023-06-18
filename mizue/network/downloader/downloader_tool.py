@@ -23,6 +23,7 @@ class _DownloadReport:
 
 class DownloaderTool(EventListener):
     def __init__(self):
+        super().__init__()
         self._file_color_scheme = {}
         self._report_data: list[_DownloadReport] = []
         self._bulk_download_size = 0
