@@ -1,5 +1,4 @@
-import setuptools
-from setuptools import setup
+from setuptools import setup, find_packages
 from codecs import open
 from os import path
 
@@ -11,7 +10,7 @@ with open(path.join(here, "README.md")) as f:
 
 setup(
     name="mizue",
-    version="0.1.13",
+    version="0.2.0",
     description="A Python package for various utilities",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -22,7 +21,10 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3"
     ],
-    packages=setuptools.find_packages(),
+    packages=find_packages(),
+    package_data={
+        "mizue.network.downloader": ["data/*.json"],
+    },
     install_requires=["wcwidth"],
     include_package_data=True
 )

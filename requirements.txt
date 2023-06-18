@@ -1,4 +1,4 @@
-requests~=2.31.0
-wcwidth~=0.2.6
-uuid~=1.30
-pathvalidate~=3.0.0
+pathvalidate==3.0.0
+Requests==2.31.0
+setuptools==67.8.0
+wcwidth==0.2.6
