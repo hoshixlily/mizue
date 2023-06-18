@@ -40,13 +40,13 @@ jobs:
               break
             elif [[ $line == "fix!: "* || $line == "feat!: "* || $line == *"BREAKING CHANGE: "* ]]; then
               version_update="major"
-              release_notes+="- **${line%%:*}**: ${line#*: }\n"
+              release_notes+="- **${line%%:*}**: ${line#*: }  \n"
             elif [[ $line == "feat: "* && version_update != "major" ]]; then
               version_update="minor"
-              release_notes+="- **${line%%:*}**: ${line#*: }\n"
+              release_notes+="- **${line%%:*}**: ${line#*: }  \n"
             elif [[ $line == "fix: "* || $line == "docs: "* && version_update != "major" && version_update != "minor" ]]; then
               version_update="patch"
-              release_notes+="- **${line%%:*}**: ${line#*: }\n"
+              release_notes+="- **${line%%:*}**: ${line#*: }  \n"
             fi
           done < <(git log --pretty=format:"%B %an" "$current_version..HEAD")
           echo "version_update=$version_update" >> $GITHUB_ENV
@@ -91,18 +91,19 @@ jobs:
 
       - name: Write release notes to file
         run: |
-          printf "%s" "${{ env.release_notes }}" > release_notes.txt
+          printf "%s" "${{ env.release_notes }}" > release_notes.md
+          cat release_notes.md
 
       - name: Create GitHub release and upload package as asset
         if: success() && env.version_update != 'none'
         uses: softprops/action-gh-release@v1
         with:
           files: dist/*
-          body_path: release_notes.txt
+          body_path: release_notes.md
           tag_name: ${{ env.current_version }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Remove release notes file after use
         run:
-          rm release_notes.txt
+          rm release_notes.md
