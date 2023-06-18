@@ -91,7 +91,7 @@ jobs:
 
       - name: Write release notes to file
         run: |
-          echo "${{ env.release_notes }}" > release_notes.txt
+          printf "%s" "${{ env.release_notes }}" > release_notes.txt
 
       - name: Create GitHub release and upload package as asset
         if: success() && env.version_update != 'none'
