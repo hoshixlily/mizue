@@ -33,25 +33,21 @@ jobs:
         run: |
           version_update="none"
           release_notes=""
-          git log --pretty=format:"%B%|%an" | while read line; do
-            echo $line
-            if [[ $line == *"|GitHub Action"* ]]; then
-              echo "Found GitHub Action, stopping"
+          while read line; do
+            echo "$line"
+            if [[ $line == *"Github Action"* ]]; then
               break
             elif [[ $line == "fix!: "* || $line == "feat!: "* || $line == *"BREAKING CHANGE: "* ]]; then
-              echo "Found breaking change, updating major version"
               version_update="major"
               release_notes+="- **${line%%:*}**: ${line#*: }\n"
             elif [[ $line == "feat: "* ]]; then
-              echo "Found feature, updating minor version"
               version_update="minor"
               release_notes+="- **${line%%:*}**: ${line#*: }\n"
             elif [[ $line == "fix: "* || $line == "docs: "* ]]; then
-              echo "Found fix or docs, updating patch version"
               version_update="patch"
               release_notes+="- **${line%%:*}**: ${line#*: }\n"
             fi
-          done
+          done < <(git log --pretty=format:"%B %an")
           echo "version_update=$version_update" >> $GITHUB_ENV
           echo "release_notes=$release_notes" >> $GITHUB_ENV
 
