@@ -12,7 +12,6 @@ class Progress:
     def __init__(self, start: int = 0, end: int = 100, value: int = 0):
         self._active = False
         self._end = end
-        self._info_text = ""
         self._interval = 0.1
         self._spinner = [
             "▹▹▹▹▹",
@@ -30,8 +29,11 @@ class Progress:
         self._width = 10
 
         self.info_separator = " | "
-        self.info_separator_renderer = lambda args: self._info_separator_renderer(
-            args.separator)  # InfoSeparatorRendererArgs
+        self.info_separator_renderer = lambda args: self._info_separator_renderer()  # InfoSeparatorRendererArgs
+
+        self.info_text = ""
+        """Set the info text to be displayed after the progress bar"""
+
         self.info_text_renderer = lambda args: self._info_text_renderer(args.text)  # InfoTextRendererArgs
         self.label = ""
         self.label_renderer = lambda args: args.label  # LabelRendererArgs
@@ -42,10 +44,6 @@ class Progress:
     def set_end_value(self, end: int) -> None:
         """Update the maximum value of the progress bar"""
         self._end = end
-
-    def set_info(self, info: str) -> None:
-        """Set the info text to be displayed after the progress bar"""
-        self._info_text = info
 
     def set_update_interval(self, interval: float) -> None:
         """Set the update interval of the progress bar"""
@@ -111,7 +109,7 @@ class Progress:
             percentage=percentage_value
         ))
         info_text = self.info_text_renderer(InfoTextRendererArgs(
-            text=self._info_text,
+            text=self.info_text,
             value=self._value,
             percentage=percentage_value
         ))
@@ -124,8 +122,8 @@ class Progress:
                 progress_text = str.format("{}{} {} {}{}", '', bar, spinner_symbol, percentage, '')
         return progress_text
 
-    def _info_separator_renderer(self, info_text: str) -> str:
-        return self.info_separator if len(info_text) > 0 else ""
+    def _info_separator_renderer(self) -> str:
+        return self.info_separator if len(self.info_text) > 0 else ""
 
     @staticmethod
     def _info_text_renderer(info_text: str) -> str:
@@ -142,7 +140,7 @@ class Progress:
             sys.stdout.flush()
             sleep(self._interval)
 
-    def _progress_bar_renderer(self):
+    def _progress_bar_renderer(self) -> str:
         bar_start = "⟪"
         bar_end = "⟫"
         width = self._get_bar_full_width()

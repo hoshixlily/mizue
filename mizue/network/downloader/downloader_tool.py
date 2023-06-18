@@ -112,7 +112,7 @@ class DownloaderTool:
                 for response in concurrent.futures.as_completed(responses):
                     self._downloaded_count += 1
                     self.progress.update_value(self._downloaded_count)
-                    self.progress.set_info(self._get_bulk_progress_info(download_dict))
+                    self.progress.info_text = self._get_bulk_progress_info(download_dict)
                 executor.shutdown(wait=True)
             except KeyboardInterrupt:
                 downloader.close()
@@ -181,14 +181,14 @@ class DownloaderTool:
 
     def _on_bulk_download_progress(self, event: ProgressEventArgs, download_dict: dict):
         download_dict[event.url] = event.downloaded
-        self.progress.set_info(self._get_bulk_progress_info(download_dict))
+        self.progress.info_text = self._get_bulk_progress_info(download_dict)
 
     def _on_download_complete(self, event: DownloadCompleteEvent):
         self.progress.update_value(event.filesize)
         downloaded_info = FileUtils.get_readable_file_size(event.filesize)
         filesize_info = FileUtils.get_readable_file_size(event.filesize)
         info = f'[{downloaded_info}/{filesize_info}]'
-        self.progress.set_info(info)
+        self.progress.info_text = info
         time.sleep(0.5)
         self.progress.stop()
         self._report_data.append(_DownloadReport(event.filename, event.filesize, event.url))
@@ -206,7 +206,7 @@ class DownloaderTool:
         downloaded_info = FileUtils.get_readable_file_size(event.downloaded)
         filesize_info = FileUtils.get_readable_file_size(event.filesize)
         info = f'[{downloaded_info}/{filesize_info}]'
-        self.progress.set_info(info)
+        self.progress.info_text = info
 
     def _on_download_start(self, event: DownloadStartEvent, filepath: list[str]):
         self.progress = Progress(start=0, end=event.filesize, value=0)
