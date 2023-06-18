@@ -34,6 +34,7 @@ jobs:
           version_update="none"
           release_notes=""
           git log --pretty=format:"%B %an" | while read line; do
+            echo $line
             if [[ $line == *"GitHub Action"* ]]; then
               break
             elif [[ $line == "fix!: "* || $line == "feat!: "* || $line == *"BREAKING CHANGE: "* ]]; then
