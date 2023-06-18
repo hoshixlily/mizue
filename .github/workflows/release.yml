@@ -16,10 +16,15 @@ jobs:
         with:
           python-version: 3.11
 
-      - name: Install dependencies
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install python3-wheel
+
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install bump2version twine
+          pip install bump2version twine wheel
 
       - name: Determine version update
         id: version_update
@@ -42,18 +47,23 @@ jobs:
           git config --local user.name "GitHub Action"
           git config --local user.email "action@github.com"
 
-      - name: Bump version and create tag
+      - name: Bump version without committing or tagging
         run: |
-          bump2version --config-file .bumpversion.cfg ${{ env.version_update }}
-          git push && git push --tags
+          bump2version --config-file .bumpversion.cfg --no-commit --no-tag ${{ env.version_update }}
 
       - name: Build package
         run: |
           python setup.py sdist bdist_wheel
 
-      - name: Publish package to PyPI
+      - name: Publish package to PyPI and create tag if successful
         env:
           TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
         run: |
-          twine upload dist/*
+          twine upload dist/* && \
+          git commit -am "Bump version to $(cat .bumpversion.cfg | grep current_version | sed 's/current_version = //')" && \
+          git tag $(cat .bumpversion.cfg | grep current_version | sed 's/current_version = //') && \
+          git push && git push --tags || \
+          echo "Package upload failed, rolling back changes" && \
+          git reset --hard HEAD && \
+          git tag -d $(cat .bumpversion.cfg | grep current_version | sed 's/current_version = //')

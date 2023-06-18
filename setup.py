@@ -25,6 +25,7 @@ setup(
     package_data={
         "mizue.network.downloader": ["data/*.json"],
     },
+    setup_requires=["wheel"],
     install_requires=["wcwidth"],
     include_package_data=True
 )
