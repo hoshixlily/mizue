@@ -29,7 +29,7 @@ jobs:
       - name: Determine version update
         id: version_update
         run: |
-          version_update="patch"
+          version_update="none"
           git log --pretty=format:"%B %an" | while read line; do
             if [[ $line == *"Github Action"* ]]; then
               break
@@ -38,6 +38,8 @@ jobs:
               break
             elif [[ $line == "feat: "* ]]; then
               version_update="minor"
+            elif [[ $line == "fix: "* || $line == "docs: "* ]]; then
+              version_update="patch"
             fi
           done
           echo "version_update=$version_update" >> $GITHUB_ENV
@@ -48,14 +50,17 @@ jobs:
           git config --local user.email "action@github.com"
 
       - name: Bump version without committing or tagging
+        if: env.version_update != 'none'
         run: |
           bump2version --config-file .bumpversion.cfg --no-commit --no-tag ${{ env.version_update }}
 
       - name: Build package
+        if: env.version_update != 'none'
         run: |
           python setup.py sdist bdist_wheel
 
       - name: Publish package to PyPI and create tag if successful
+        if: env.version_update != 'none'
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
