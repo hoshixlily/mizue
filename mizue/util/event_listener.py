@@ -19,7 +19,7 @@ class EventListener(ABC):
         self._events[event].append(callback)
         return event_id
 
-    def remove_event(self, event_id) -> None:
+    def remove_event(self, event_id: int) -> None:
         """Remove a callback from an event"""
         if event_id in self._event_id_map:
             event, callback = self._event_id_map[event_id]
