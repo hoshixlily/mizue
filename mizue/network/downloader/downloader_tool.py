@@ -1,4 +1,5 @@
 import concurrent.futures
+import json
 import os
 import time
 from dataclasses import dataclass
@@ -21,11 +22,13 @@ class _DownloadReport:
 
 class DownloaderTool:
     def __init__(self):
+        self._file_color_scheme = {}
         self._report_data: list[_DownloadReport] = []
         self._bulk_download_size = 0
         self._downloaded_count = 0
         self._total_download_count = 0
         self.progress: Progress | None = None
+        self._load_color_scheme()
 
     def download(self, url: str, output_path: str):
         """
@@ -102,7 +105,7 @@ class DownloaderTool:
                 downloader.add_event(DownloadEventType.PROGRESS,
                                      lambda event: self._on_bulk_download_progress(event, download_dict))
                 downloader.add_event(DownloadEventType.COMPLETED,
-                                        lambda event: self._on_bulk_download_complete(event))
+                                     lambda event: self._on_bulk_download_complete(event))
                 downloader.add_event(DownloadEventType.FAILED, lambda event: self._on_bulk_download_failed(event))
                 for url, output_path in list(set(urls)):
                     responses.append(executor.submit(downloader.download, url, output_path))
@@ -130,14 +133,20 @@ class DownloaderTool:
 
     @staticmethod
     def _get_basic_colored_text(text: str, percentage: float):
-        if percentage < 25:
-            return Printer.format_hex(text, '#ff0000')
-        elif percentage < 50:
-            return Printer.format_hex(text, '#ff8c00')
+        if percentage < 15:
+            return Printer.format_hex(text, '#FF0D0D')
+        elif percentage < 30:
+            return Printer.format_hex(text, '#FF4E11')
+        elif percentage < 45:
+            return Printer.format_hex(text, '#FF8E15')
+        elif percentage < 60:
+            return Printer.format_hex(text, '#FAB733')
         elif percentage < 75:
-            return Printer.format_hex(text, '#ffd700')
+            return Printer.format_hex(text, '#ACB334')
+        elif percentage < 90:
+            return Printer.format_hex(text, '#69B34C')
         else:
-            return Printer.format_hex(text, '#00ff00')
+            return Printer.format_hex(text, '#0EB33B')
 
     def _get_bulk_progress_info(self, download_dict: dict):
         file_progress_text = f'[{self._downloaded_count}/{self._total_download_count}]'
@@ -155,7 +164,14 @@ class DownloaderTool:
 
     @staticmethod
     def _label_renderer(args: LabelRendererArgs):
-        return Printer.format_hex(args.label, '#FFCC75')
+        if args.percentage < 100:
+            return Printer.format_hex(args.label, '#FFCC75')
+        return Printer.format_hex('Downloaded: ', '#0EB33B')
+
+    def _load_color_scheme(self):
+        file_path = os.path.join(os.path.dirname(__file__), "data", "colors.json")
+        with open(file_path, "r") as f:
+            self._file_color_scheme = json.load(f)
 
     def _on_bulk_download_complete(self, event: DownloadCompleteEvent):
         self._report_data.append(_DownloadReport(event.filename, event.filesize, event.url))
@@ -208,17 +224,22 @@ class DownloaderTool:
         row_index = 1
         success_grid_data = []
         for report in success_data:
-            success_grid_data.append([row_index, report.filename, FileUtils.get_readable_file_size(report.filesize)])
+            filename, ext = os.path.splitext(report.filename)
+            success_grid_data.append(
+                [row_index, report.filename, ext[1:], FileUtils.get_readable_file_size(report.filesize)])
             row_index += 1
 
         failed_grid_data = []
         for report in failed_data:
-            failed_grid_data.append([row_index, report.url, 'Failed'])
+            failed_grid_data.append([row_index, report.url, "", 'Failed'])
             row_index += 1
 
         grid_columns: list[ColumnSettings] = [
-            ColumnSettings(title='#', alignment=Alignment.RIGHT, renderer=lambda x: Printer.format_hex(x.cell, '#FFCC75')),
+            ColumnSettings(title='#', alignment=Alignment.RIGHT,
+                           renderer=lambda x: Printer.format_hex(x.cell, '#FFCC75')),
             ColumnSettings(title='Filename/URL', renderer=self._report_grid_file_column_cell_renderer),
+            ColumnSettings(title='Type', alignment=Alignment.RIGHT,
+                           renderer=self._report_grid_file_type_column_cell_renderer),
             ColumnSettings(title='Filesize/Status', alignment=Alignment.RIGHT,
                            renderer=lambda x: Printer.format_hex(x.cell, '#FF0000')
                            if x.cell == 'Failed' else self._report_grid_cell_renderer(x))
@@ -244,15 +265,18 @@ class DownloaderTool:
             return Printer.format_hex(args.cell, '#FFCC75')
         return args.cell
 
-    @staticmethod
-    def _report_grid_file_column_cell_renderer(args: CellRendererArgs):
+    def _report_grid_file_column_cell_renderer(self, args: CellRendererArgs):
         if args.is_header:
             return Printer.format_hex(args.cell, '#FFCC75')
-        if args.cell.endswith(".jpg"):
-            return Printer.format_rgb(args.cell, (0, 153, 153))
-        if args.cell.endswith(".png"):
-            return Printer.format_hex(args.cell, '#4440c0')
-        return args.cell
+        file, ext = os.path.splitext(args.cell)
+        color = self._file_color_scheme.get(ext[1:], '#FFFFFF')
+        return Printer.format_hex(args.cell, color)
+
+    def _report_grid_file_type_column_cell_renderer(self, args: CellRendererArgs):
+        if args.is_header:
+            return Printer.format_hex(args.cell, '#FFCC75')
+        color = self._file_color_scheme.get(args.cell, '#FFFFFF')
+        return Printer.format_hex(args.cell, color)
 
     @staticmethod
     def _spinner_renderer(args: SpinnerRendererArgs):
