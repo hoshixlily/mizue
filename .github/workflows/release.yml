@@ -58,7 +58,7 @@ jobs:
       - name: Publish package to PyPI and create tag if successful
         env:
           TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
         run: |
           twine upload dist/* && \
           git commit -am "Bump version to $(cat .bumpversion.cfg | grep current_version | sed 's/current_version = //')" && \
