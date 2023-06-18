@@ -86,5 +86,6 @@ jobs:
         with:
           files: dist/*
           body: ${{ env.release_notes }}
+          tag_name: $(cat .bumpversion.cfg | grep current_version | sed 's/current_version = //')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
