@@ -11,6 +11,7 @@ from mizue.printer import Printer
 from mizue.printer.grid import ColumnSettings, Alignment, Grid, BorderStyle, CellRendererArgs
 from mizue.progress import LabelRendererArgs, \
     InfoSeparatorRendererArgs, InfoTextRendererArgs, ColorfulProgress
+from mizue.util import EventListener
 
 
 @dataclass
@@ -20,7 +21,7 @@ class _DownloadReport:
     url: str
 
 
-class DownloaderTool:
+class DownloaderTool(EventListener):
     def __init__(self):
         self._file_color_scheme = {}
         self._report_data: list[_DownloadReport] = []
@@ -176,6 +177,7 @@ class DownloaderTool:
         time.sleep(0.5)
         self.progress.stop()
         self._report_data.append(_DownloadReport(event.filename, event.filesize, event.url))
+        self._fire_event(DownloadEventType.COMPLETED, event)
 
     def _on_download_failure(self, event: DownloadFailureEvent):
         if isinstance(event.exception, KeyboardInterrupt):
@@ -184,6 +186,7 @@ class DownloaderTool:
         if self.progress:
             self.progress.terminate()
         self._report_data.append(_DownloadReport("", 0, event.url))
+        self._fire_event(DownloadEventType.FAILED, event)
 
     def _on_download_progress(self, event: ProgressEventArgs):
         self.progress.update_value(event.downloaded)
@@ -191,12 +194,14 @@ class DownloaderTool:
         filesize_info = FileUtils.get_readable_file_size(event.filesize)
         info = f'[{downloaded_info}/{filesize_info}]'
         self.progress.info_text = info
+        self._fire_event(DownloadEventType.PROGRESS, event)
 
     def _on_download_start(self, event: DownloadStartEvent, filepath: list[str]):
         self.progress = ColorfulProgress(start=0, end=event.filesize, value=0)
         self._configure_progress()
         self.progress.start()
         filepath.append(event.filepath)
+        self._fire_event(DownloadEventType.STARTED, event)
 
     def _print_report(self):
         success_data = [report for report in self._report_data if report.filesize > 0]
