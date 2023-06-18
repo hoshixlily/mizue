@@ -9,8 +9,8 @@ from mizue.network.downloader import DownloadStartEvent, ProgressEventArgs, Down
     DownloadEventType, DownloadFailureEvent
 from mizue.printer import Printer
 from mizue.printer.grid import ColumnSettings, Alignment, Grid, BorderStyle, CellRendererArgs
-from mizue.progress import Progress, ProgressBarRendererArgs, SpinnerRendererArgs, LabelRendererArgs, \
-    InfoSeparatorRendererArgs, InfoTextRendererArgs, PercentageRendererArgs
+from mizue.progress import LabelRendererArgs, \
+    InfoSeparatorRendererArgs, InfoTextRendererArgs, ColorfulProgress
 
 
 @dataclass
@@ -27,7 +27,7 @@ class DownloaderTool:
         self._bulk_download_size = 0
         self._downloaded_count = 0
         self._total_download_count = 0
-        self.progress: Progress | None = None
+        self.progress: ColorfulProgress | None = None
         self._load_color_scheme()
 
     def download(self, url: str, output_path: str):
@@ -61,8 +61,8 @@ class DownloaderTool:
         If the urls parameter is a list of [url, output_path] tuples, every url will be downloaded to its corresponding
         output_path.
 
-        If the urls parameter is a list of urls, every url will be downloaded to the output_path parameter. In this case,
-        the output_path parameter must be specified.
+        If the urls parameter is a list of urls, every url will be downloaded to the output_path parameter.
+        In this case, the output_path parameter must be specified.
         :param urls: A list of urls or a list of [url, output_path] tuples
         :param output_path: The output directory if the urls parameter is a list of urls
         :param parallel: Number of parallel downloads
@@ -91,7 +91,7 @@ class DownloaderTool:
         :return: None
         """
 
-        self.progress = Progress(start=0, end=len(urls), value=0)
+        self.progress = ColorfulProgress(start=0, end=len(urls), value=0)
         self._configure_progress()
         self.progress.start()
         self._downloaded_count = 0
@@ -126,41 +126,25 @@ class DownloaderTool:
         self.progress.info_separator_renderer = self._info_separator_renderer
         self.progress.info_text_renderer = self._info_text_renderer
         self.progress.label_renderer = self._label_renderer
-        self.progress.percentage_renderer = self._percentage_renderer
-        self.progress.progress_bar_renderer = self._progress_bar_renderer
-        self.progress.spinner_renderer = self._spinner_renderer
         self.progress.label = "Downloading: "
 
     @staticmethod
     def _get_basic_colored_text(text: str, percentage: float):
-        if percentage < 15:
-            return Printer.format_hex(text, '#FF0D0D')
-        elif percentage < 30:
-            return Printer.format_hex(text, '#FF4E11')
-        elif percentage < 45:
-            return Printer.format_hex(text, '#FF8E15')
-        elif percentage < 60:
-            return Printer.format_hex(text, '#FAB733')
-        elif percentage < 75:
-            return Printer.format_hex(text, '#ACB334')
-        elif percentage < 90:
-            return Printer.format_hex(text, '#69B34C')
-        else:
-            return Printer.format_hex(text, '#0EB33B')
+        return ColorfulProgress.get_basic_colored_text(text, percentage)
 
     def _get_bulk_progress_info(self, download_dict: dict):
-        file_progress_text = f'[{self._downloaded_count}/{self._total_download_count}]'
+        file_progress_text = f'⟪{self._downloaded_count}/{self._total_download_count}⟫'
         size_text = FileUtils.get_readable_file_size(sum(download_dict.values()))
-        return f'{file_progress_text} [{size_text}]'
+        return f'{file_progress_text} ⟪{size_text}⟫'
 
     @staticmethod
     def _info_separator_renderer(args: InfoSeparatorRendererArgs):
-        return Printer.format_hex(args.separator, '#FFCC75')
+        return ColorfulProgress.get_basic_colored_text(" | ", args.percentage)
 
     @staticmethod
     def _info_text_renderer(args: InfoTextRendererArgs):
-        return Printer.format_hex(args.text, '#FFCC75')
-        # return DownloaderTool._get_basic_colored_text(args.text, args.percentage)
+        # return Printer.format_hex(args.text, '#FFCC75')
+        return DownloaderTool._get_basic_colored_text(args.text, args.percentage)
 
     @staticmethod
     def _label_renderer(args: LabelRendererArgs):
@@ -209,14 +193,10 @@ class DownloaderTool:
         self.progress.info_text = info
 
     def _on_download_start(self, event: DownloadStartEvent, filepath: list[str]):
-        self.progress = Progress(start=0, end=event.filesize, value=0)
+        self.progress = ColorfulProgress(start=0, end=event.filesize, value=0)
         self._configure_progress()
         self.progress.start()
         filepath.append(event.filepath)
-
-    @staticmethod
-    def _percentage_renderer(args: PercentageRendererArgs):
-        return DownloaderTool._get_basic_colored_text("{:.2f}%".format(args.percentage), args.percentage)
 
     def _print_report(self):
         success_data = [report for report in self._report_data if report.filesize > 0]
@@ -252,10 +232,6 @@ class DownloaderTool:
         grid.print()
 
     @staticmethod
-    def _progress_bar_renderer(args: ProgressBarRendererArgs):
-        return DownloaderTool._get_basic_colored_text(args.text, args.percentage)
-
-    @staticmethod
     def _report_grid_cell_renderer(args: CellRendererArgs):
         if args.cell.endswith("KB"):
             return Printer.format_hex(args.cell, '#00a9ff')
@@ -277,7 +253,3 @@ class DownloaderTool:
             return Printer.format_hex(args.cell, '#FFCC75')
         color = self._file_color_scheme.get(args.cell, '#FFFFFF')
         return Printer.format_hex(args.cell, color)
-
-    @staticmethod
-    def _spinner_renderer(args: SpinnerRendererArgs):
-        return DownloaderTool._get_basic_colored_text(args.spinner, args.percentage)

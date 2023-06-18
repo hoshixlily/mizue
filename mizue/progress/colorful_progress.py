@@ -10,7 +10,7 @@ class ColorfulProgress(Progress):
         self._setup_renderers()
 
     @staticmethod
-    def _get_basic_colored_text(text: str, percentage: float):
+    def get_basic_colored_text(text: str, percentage: float):
         if percentage < 15:
             return Printer.format_hex(text, '#FF0D0D')
         elif percentage < 30:
@@ -34,15 +34,15 @@ class ColorfulProgress(Progress):
 
     @staticmethod
     def _percentage_renderer(args: PercentageRendererArgs):
-        return ColorfulProgress._get_basic_colored_text("{:.2f}%".format(args.percentage), args.percentage)
+        return ColorfulProgress.get_basic_colored_text("{:.2f}%".format(args.percentage), args.percentage)
 
     @staticmethod
     def _progress_renderer(args: ProgressBarRendererArgs):
-        return ColorfulProgress._get_basic_colored_text(args.text, args.percentage)
+        return ColorfulProgress.get_basic_colored_text(args.text, args.percentage)
 
     @staticmethod
     def _spinner_renderer(args: SpinnerRendererArgs):
-        return ColorfulProgress._get_basic_colored_text(args.spinner, args.percentage)
+        return ColorfulProgress.get_basic_colored_text(args.spinner, args.percentage)
 
     def _setup_renderers(self):
         self.label_renderer = lambda args: self._label_renderer(args)  # LabelRendererArgs
