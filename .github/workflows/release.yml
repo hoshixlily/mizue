@@ -26,23 +26,27 @@ jobs:
           python -m pip install --upgrade pip
           pip install bump2version twine wheel
 
-      - name: Determine version update
-        id: version_update
+      - name: Determine version update and gather release notes
+        id: version_update_and_release_notes
         run: |
           version_update="none"
+          release_notes=""
           git log --pretty=format:"%B %an" | while read line; do
             if [[ $line == *"Github Action"* ]]; then
               break
             elif [[ $line == "fix!: "* || $line == "feat!: "* || $line == *"BREAKING CHANGE: "* ]]; then
               version_update="major"
-              break
+              release_notes+="- **${line%%:*}**: ${line#*: }\n"
             elif [[ $line == "feat: "* ]]; then
               version_update="minor"
+              release_notes+="- **${line%%:*}**: ${line#*: }\n"
             elif [[ $line == "fix: "* || $line == "docs: "* ]]; then
               version_update="patch"
+              release_notes+="- **${line%%:*}**: ${line#*: }\n"
             fi
           done
           echo "version_update=$version_update" >> $GITHUB_ENV
+          echo "release_notes=$release_notes" >> $GITHUB_ENV
 
       - name: Set GitHub username and email
         run: |
@@ -72,3 +76,12 @@ jobs:
           echo "Package upload failed, rolling back changes" && \
           git reset --hard HEAD && \
           git tag -d $(cat .bumpversion.cfg | grep current_version | sed 's/current_version = //')
+
+      - name: Create GitHub release and upload package as asset
+        if: success() && env.version_update != 'none'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/*
+          body: ${{ env.release_notes }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
