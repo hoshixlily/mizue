@@ -31,6 +31,10 @@ class DownloaderTool(EventListener):
         self._total_download_count = 0
         self._success_count = 0  # For bulk downloads
         self._failure_count = 0  # For bulk downloads
+
+        self.display_report = True
+        """Whether to display the download report after the download is complete"""
+
         self.progress: ColorfulProgress | None = None
         self._load_color_scheme()
 
@@ -56,7 +60,9 @@ class DownloaderTool(EventListener):
             if len(filepath) > 0:
                 os.remove(filepath[0])
             self._report_data.append(_DownloadReport(url, 0, url))
-        self._print_report()
+        
+        if self.display_report:
+            self._print_report()
 
     def download_bulk(self, urls: list[str] | list[tuple[str, str]], output_path: str | None = None, parallel: int = 4):
         """
@@ -127,7 +133,8 @@ class DownloaderTool(EventListener):
                 Printer.warning(f"{os.linesep}Keyboard interrupt detected. Cleaning up...")
                 executor.shutdown(wait=False, cancel_futures=True)
         self.progress.stop()
-        self._print_report()
+        if self.display_report:
+            self._print_report()
 
     def _configure_progress(self):
         self.progress.info_separator_renderer = self._info_separator_renderer
