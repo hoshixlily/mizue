@@ -29,6 +29,8 @@ class DownloaderTool(EventListener):
         self._bulk_download_size = 0
         self._downloaded_count = 0
         self._total_download_count = 0
+        self._success_count = 0  # For bulk downloads
+        self._failure_count = 0  # For bulk downloads
         self.progress: ColorfulProgress | None = None
         self._load_color_scheme()
 
@@ -98,6 +100,9 @@ class DownloaderTool(EventListener):
         self.progress.start()
         self._downloaded_count = 0
         self._total_download_count = len(urls)
+        self._report_data = []
+        self._success_count = 0
+        self._failure_count = 0
         download_dict = {}
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=parallel) as executor:
@@ -143,10 +148,19 @@ class DownloaderTool(EventListener):
     def _info_separator_renderer(args: InfoSeparatorRendererArgs):
         return ColorfulProgress.get_basic_colored_text(" | ", args.percentage)
 
-    @staticmethod
-    def _info_text_renderer(args: InfoTextRendererArgs):
-        # return Printer.format_hex(args.text, '#FFCC75')
-        return DownloaderTool._get_basic_colored_text(args.text, args.percentage)
+    def _info_text_renderer(self, args: InfoTextRendererArgs):
+        info_text = DownloaderTool._get_basic_colored_text(args.text, args.percentage)
+        separator = ColorfulProgress.get_basic_colored_text(" | ", args.percentage)
+        successful_text = Printer.format_hex(f'{self._success_count}', '#0EB33B')
+        failed_text = Printer.format_hex(f'{self._failure_count}', '#FF0000')
+        status_text = str.format("{}{}{}{}{}",
+                                 ColorfulProgress.get_basic_colored_text("⟪", args.percentage),
+                                 successful_text,
+                                 ColorfulProgress.get_basic_colored_text("/", args.percentage),
+                                 failed_text,
+                                 ColorfulProgress.get_basic_colored_text("⟫", args.percentage))
+        full_info_text = str.format("{}{}{}", info_text, separator, status_text)
+        return full_info_text
 
     @staticmethod
     def _label_renderer(args: LabelRendererArgs):
@@ -161,9 +175,11 @@ class DownloaderTool(EventListener):
 
     def _on_bulk_download_complete(self, event: DownloadCompleteEvent):
         self._report_data.append(_DownloadReport(event.filename, event.filesize, event.url))
+        self._success_count += 1
 
     def _on_bulk_download_failed(self, event: DownloadFailureEvent):
         self._report_data.append(_DownloadReport("", 0, event.url))
+        self._failure_count += 1
 
     def _on_bulk_download_progress(self, event: ProgressEventArgs, download_dict: dict):
         download_dict[event.url] = event.downloaded
