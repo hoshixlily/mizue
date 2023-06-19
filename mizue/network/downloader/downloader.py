@@ -136,11 +136,12 @@ class Downloader(EventListener):
             if filename:
                 return filename
         else:
-            url_filename = urllib.parse.urlparse(response.url)
+            unquoted_url = urllib.parse.unquote_plus(response.url, encoding='utf-8', errors='replace')
+            unquoted_url = unquoted_url.replace("?", "_")
+            url_filename = urllib.parse.urlparse(unquoted_url)
             filename = os.path.basename(url_filename.path)
-            unquoted_filename = urllib.parse.unquote_plus(filename, encoding='utf-8', errors='replace')
-            if unquoted_filename:
-                return sanitize_filename(unquoted_filename)
+            if filename:
+                return sanitize_filename(filename)
         return None
 
     def _get_response(self, url: str) -> requests.Response | None:
