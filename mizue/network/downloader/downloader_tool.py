@@ -60,7 +60,7 @@ class DownloaderTool(EventListener):
             if len(filepath) > 0:
                 os.remove(filepath[0])
             self._report_data.append(_DownloadReport(url, 0, url))
-        
+
         if self.display_report:
             self._print_report()
 

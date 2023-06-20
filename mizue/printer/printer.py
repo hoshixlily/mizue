@@ -8,21 +8,6 @@ class Printer:
     _newline: bool = True
 
     @staticmethod
-    def apply_background(message, bg_color):
-        end_char = '' if Printer._formatted(message) else TerminalColors.END_CHAR
-        msg = str.format("{}{}{}", bg_color, message, end_char)
-        return msg
-
-    @staticmethod
-    def format(text: str, color: str = None, bold: bool = False, underlined: bool = False) -> str:
-        """Formats a string with the specified color, boldness, and underlining."""
-        color = color if color is not None else ''
-        bolded = TerminalColors.BOLD if bold else ''
-        underlined = TerminalColors.UNDERLINE if underlined else ''
-        end = TerminalColors.END_CHAR
-        return f'{color}{bolded}{underlined}{text}{end}'
-
-    @staticmethod
     def format_hex(text: str, text_hex: str, bg_hex: str | None = None,
                    bold: bool = False, underlined: bool = False) -> str:
         """Formats a string with the specified color, boldness, and underlining."""
