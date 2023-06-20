@@ -10,9 +10,9 @@ A simple package containing various command-line utilities.
 
 ## Caution
 
-**This package does not have any tests. It is not recommended to use this package in production.
-I wrote this package for my own personal use. I don't have any immediate plans to add tests to this package and make it production-ready.
-Use this package at your own risk.**
+**This package does not have any tests. It is not recommended to use it in production.
+I wrote this package for my own personal use. I don't have any immediate plans to add tests and make it production-ready.
+Use it at your own risk.**
 
 ## Installation
 
