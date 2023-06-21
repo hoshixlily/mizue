@@ -4,6 +4,7 @@ A simple package containing various command-line utilities.
 - [Caution](#caution)
 - [Installation](#installation)
 - [Utilities](#contents)
+  - [Grid](#grid)
   - [Printer](#printer)
   - [Progress](#progress)
 
@@ -21,6 +22,7 @@ Use it at your own risk.**
 ```
 
 ## Utilities (Work in Progress)
+- [Grid](#grid)
 - [Printer](#printer)
 - [Progress](#progress)
 - More utilities coming soon...
@@ -48,9 +50,12 @@ grid.print()
 
 `ColumnSettings` allows the following attributes to be set:
 - `title`: The title of the column
-- `alignment`: The alignment of the column
+- `alignment`: The alignment of the column. Can be one of the following: 
+  - ``Alignment.LEFT`` 
+  - ``Alignment.CENTER`` 
+  - ``Alignment.RIGHT``
 - `width`: The width of the column
-- `renderer`: A function that takes in an object of type ``CellRendererArgs`` and returns a string to be displayed in the column
+- `renderer`: A function that takes in an object of type ``CellRendererArgs`` and returns a string to be displayed in the column.
 
 `Grid` allows the following attributes to be set:
 - `border_color`: The color of the border in hex format
@@ -59,7 +64,7 @@ grid.print()
   - ``BorderStyle.DOUBLE`` 
   - ``BorderStyle.BASIC`` 
   - ``BorderStyle.NONE``
-- `cell_renderer`: A function that takes in an object of type ``CellRendererArgs`` and returns a string to be displayed in the cell
+- `cell_renderer`: A function that takes in an object of type ``CellRendererArgs`` and returns a string to be displayed in the cell.
 
 ### Printer
 
