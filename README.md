@@ -25,6 +25,42 @@ Use it at your own risk.**
 - [Progress](#progress)
 - More utilities coming soon...
 
+
+### Grid
+
+This class can be used to print a table/grid in the terminal.
+
+```python
+from mizue.printer.grid import Grid, ColumnSettings, Alignment
+from mizue.file import FileUtils
+import os
+
+column2 = ColumnSettings(title='File', alignment=Alignment.RIGHT)
+column3 = ColumnSettings(title='Size', alignment=Alignment.CENTER, width=50)
+columns = [column2, column3]
+
+
+filelist = FileUtils.list_files(".", recursive=True, fullpath=True)
+grid_data = list(map(lambda f: [f, FileUtils.get_readable_file_size(os.stat(f).st_size)], filelist))
+grid = Grid(columns, grid_data)
+grid.print()
+```
+
+`ColumnSettings` allows the following attributes to be set:
+- `title`: The title of the column
+- `alignment`: The alignment of the column
+- `width`: The width of the column
+- `renderer`: A function that takes in an object of type ``CellRendererArgs`` and returns a string to be displayed in the column
+
+`Grid` allows the following attributes to be set:
+- `border_color`: The color of the border in hex format
+- `border_style`: The style of the border. Can be one of the following: 
+  - ``BorderStyle.SINGLE`` 
+  - ``BorderStyle.DOUBLE`` 
+  - ``BorderStyle.BASIC`` 
+  - ``BorderStyle.NONE``
+- `cell_renderer`: A function that takes in an object of type ``CellRendererArgs`` and returns a string to be displayed in the cell
+
 ### Printer
 
 This class contains various static methods for printing text in different colors.
