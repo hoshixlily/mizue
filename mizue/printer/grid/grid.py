@@ -18,12 +18,29 @@ from .row_border_position import RowBorderPosition
 
 class Grid:
     def __init__(self, columns: list[ColumnSettings], data: list[list[str]]):
+        self._columns = []
         self.border_color = None
         self.border_style = BorderStyle.BASIC
         self.cell_renderer: Callable[[CellRendererArgs], str] = lambda args: Grid._get_default_cell_renderer(args)
-        self.columns = []
         self.data = data
-        self._prepare_columns(columns)
+        if len(columns) > 0:
+            self._prepare_columns(columns)
+
+    @property
+    def columns(self) -> list[Column]:
+        return self._columns
+
+    @columns.setter
+    def columns(self, value: list[ColumnSettings]) -> None:
+        self._prepare_columns(value)
+
+    def fill_screen(self):
+        terminal_width = Utility.get_terminal_width()
+        total_width = sum([column.width for column in self.columns]) + (4 * len(self.columns))
+        if total_width < terminal_width:
+            remaining_width = terminal_width - sum([column.width for column in self.columns]) - (4 * len(self.columns))
+            for column in self.columns:
+                column.width += int(remaining_width / len(self.columns))
 
     def print(self) -> None:
         """Print the grid"""
@@ -259,15 +276,8 @@ class Grid:
             column.index = i
             column.width = column_setting["width"] if "width" in column_setting else self._find_max_cell_width(column)
             columns.append(column)
-        self.columns = columns
+        self._columns = columns
         self._resize_columns_to_fit()
-
-    def _resize_columns_to_fit2(self):
-        terminal_width = Utility.get_terminal_width()
-        total_column_width = sum(column.width for column in self.columns)
-        if total_column_width > terminal_width:
-            for cx in range(0, len(self.columns)):
-                self.columns[cx].width = int((terminal_width * self.columns[cx].width) / total_column_width) - 4
 
     def _resize_columns_to_fit(self):
         terminal_width = Utility.get_terminal_width()

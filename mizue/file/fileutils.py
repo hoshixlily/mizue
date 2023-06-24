@@ -3,6 +3,11 @@ import os
 
 class FileUtils:
     @staticmethod
+    def get_files_of_type(path, file_type, recursive=False, fullpath=True):
+        filelist = FileUtils.list_files(path, recursive=recursive, fullpath=fullpath)
+        return [f for f in filelist if f.endswith(file_type)]
+
+    @staticmethod
     def get_readable_file_size(size: int, suffix: str = "B"):
         for unit in ['', 'K', 'M', 'G', 'T', 'P', 'E', 'Z']:
             if abs(size) < 1024.0:
