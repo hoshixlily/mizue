@@ -2,7 +2,7 @@ from typing import Final
 
 
 class TerminalColors:
-    END_CHAR: Final[str] = '\x1b[00m'
+    END_CHAR: Final[str] = '\x1b[0m'
     SUCCESS: Final[str] = '#4CAF50'
     WARNING: Final[str] = '#ff9800'
     ERROR: Final[str] = '#f44336'

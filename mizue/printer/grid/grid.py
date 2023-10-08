@@ -250,8 +250,6 @@ class Grid:
                     rows[i].append("")
         return rows
 
-
-
     @staticmethod
     def _get_raw_cell_text_after_rendering(rendered_cell: str) -> str:
         # remove all the color codes and other formatting codes, also remove ansi escape codes
@@ -330,6 +328,28 @@ class Grid:
 
     @staticmethod
     def _split_text_into_color_parts(text: str) -> list[tuple[str, str, str]]:
-        matcher = re.compile(r"(\x1b\[[0-9;]*m)(.*?)(\x1b\[00m)")
-        groups = matcher.findall(text)
-        return groups if groups else []
+        matcher = re.compile(r"(\x1b\[[0-9;]*m)(.*?)(\x1b\[0m)")
+
+        substring_tuples = []
+        for m in re.finditer(matcher, text):
+            substring_tuples.append(m.span())
+
+        substrings = []
+        last_end = 0
+        for start, end in sorted(substring_tuples):
+            if start > last_end:
+                substrings.append(text[last_end:start])
+            substrings.append(text[start:end])
+            last_end = end
+        if last_end < len(text):
+            substrings.append(text[last_end:])
+
+        parts: list[tuple[str, str, str]] = []
+
+        for substring in substrings:
+            if re.match(matcher, substring):
+                g = re.match(matcher, substring).groups()
+                parts.append(g)
+            else:
+                parts.append(("", substring, ""))
+        return parts
