@@ -54,8 +54,11 @@ class Grid:
         buffer.append(self._create_row_border(RowBorderPosition.MIDDLE))
         buffer.append(os.linesep)
         for row in self.data:
-            buffer.append(self._create_row(row, False))
-            buffer.append(os.linesep)
+            row_with_offset_rows = Grid._get_multiline_cell_offset_rows(row)
+            for offset_row in row_with_offset_rows:
+                offset_row = [Grid._replace_tabs(str(cell)) for cell in offset_row]
+                buffer.append(self._create_row(offset_row, False))
+                buffer.append(os.linesep)
         buffer.append(self._create_row_border(RowBorderPosition.BOTTOM))
         return "".join(buffer)
 
@@ -228,6 +231,28 @@ class Grid:
         return ""
 
     @staticmethod
+    def _get_line_count(text: str) -> int:
+        return len(text.splitlines())
+
+    @staticmethod
+    def _get_multiline_cell_offset_rows(row: list[str]) -> list[list[str]]:
+        rows: list[list[str]] = []
+        row_lines = map(lambda cell: cell.splitlines(), row)
+        max_line_count = max(map(lambda lines: len(lines), row_lines))
+        for i in range(max_line_count):
+            rows.append([])
+        for cell in row:
+            lines = cell.splitlines()
+            for i in range(max_line_count):
+                if i < len(lines):
+                    rows[i].append(lines[i])
+                else:
+                    rows[i].append("")
+        return rows
+
+
+
+    @staticmethod
     def _get_raw_cell_text_after_rendering(rendered_cell: str) -> str:
         # remove all the color codes and other formatting codes, also remove ansi escape codes
         return re.sub(r"\x1b\[[0-9;]*m", "", rendered_cell)
@@ -258,6 +283,10 @@ class Grid:
         return text
 
     @staticmethod
+    def _has_multiline_cell(row: list[str]):
+        return any(Grid._get_line_count(str(cell)) > 1 for cell in row)
+
+    @staticmethod
     def _has_variation_selector(text: str) -> bool:
         return any(Grid._is_variation_selector(c) for c in text)
 
@@ -278,6 +307,10 @@ class Grid:
             columns.append(column)
         self._columns = columns
         self._resize_columns_to_fit()
+
+    @staticmethod
+    def _replace_tabs(text: str) -> str:
+        return text.replace("\t", "    ")
 
     def _resize_columns_to_fit(self):
         terminal_width = Utility.get_terminal_width()
