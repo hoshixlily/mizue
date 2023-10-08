@@ -9,4 +9,6 @@ class TerminalColors:
     INFO: Final[str] = '#2196F3'
     UNDERLINE: Final[str] = '\x1b[4m'
     BOLD: Final[str] = '\x1b[1m'
+    ITALIC: Final[str] = '\x1b[3m'
+    STRIKETHROUGH: Final[str] = '\x1b[9m'
     RESET: Final[str] = '\x1b[0m'
