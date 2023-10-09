@@ -10,3 +10,4 @@ class Column:
         self.width = settings["width"] if "width" in settings else None
         if self.width is not None and self.width <= 0:
             raise ValueError("The column width must be greater than zero")
+        self.wrap = settings["wrap"] if "wrap" in settings else False
