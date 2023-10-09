@@ -166,7 +166,7 @@ class Grid:
                 text_width = wcswidth(text)
                 if processed_width + text_width <= column_width:
                     if processed_width + text_width == column_width:
-                        text = text[:-1] + "…"
+                        text = text[:-1] + "…" if Grid._is_wide_char(text[-1]) else text
                     formatted_text = f"{color_part[0]}{text}{color_part[2]}"
                     formatted_parts.append(formatted_text)
                     processed_width += text_width
