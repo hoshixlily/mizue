@@ -9,3 +9,4 @@ class ColumnSettings(TypedDict):
     renderer: NotRequired[Callable[[CellRendererArgs], str]]
     title: str
     width: NotRequired[int]
+    wrap: NotRequired[bool]
