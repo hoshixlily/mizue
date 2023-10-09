@@ -16,20 +16,16 @@ class Printer:
         sys.stdout.flush()
 
     @staticmethod
-    def format_hex(text: str, text_hex: str, bg_hex: str | None = None,
+    def format_hex(text: str, color: str | None = None, background: str | None = None,
                    bold: bool = False, italic: bool = False, underlined: bool = False,
                    strikethrough: bool = False) -> str:
         """Formats a string with the specified customizations. Color strings should be in 6-digit hex format."""
-        if bg_hex is None:
-            text_rgb: tuple = Printer.hex_to_rgb(text_hex)
-            return Printer.format_rgb(text, text_rgb, None, bold, italic, underlined, strikethrough)
-        else:
-            text_rgb: tuple = Printer.hex_to_rgb(text_hex)
-            bg_rgb: tuple = Printer.hex_to_rgb(bg_hex)
-            return Printer.format_rgb(text, text_rgb, bg_rgb, bold, italic, underlined, strikethrough)
+        text_rgb: tuple = Printer.hex_to_rgb(color) if color is not None else None
+        bg_rgb: tuple = Printer.hex_to_rgb(background) if background is not None else None
+        return Printer.format_rgb(text, text_rgb, bg_rgb, bold, italic, underlined, strikethrough)
 
     @staticmethod
-    def format_rgb(text: str, text_rgb: tuple[int, int, int], bg_rgb: tuple[int, int, int] | None = None,
+    def format_rgb(text: str, color: tuple[int, int, int] | None = None, background: tuple[int, int, int] | None = None,
                    bold: bool = False, italic: bool = False, underlined: bool = False,
                    strikethrough: bool = False) -> str:
         """Formats a string with the specified customizations. Color tuples should be in RGB format."""
@@ -38,11 +34,15 @@ class Printer:
         underlined = TerminalColors.UNDERLINE if underlined else ''
         strikethrough = TerminalColors.STRIKETHROUGH if strikethrough else ''
         end = TerminalColors.END_CHAR
-        if bg_rgb is None:
-            return f'\033[38;2;{text_rgb[0]};{text_rgb[1]};{text_rgb[2]}m{bolded}{italicized}{underlined}{strikethrough}{text}{end}'
+        if background is None:
+            if color is None:
+                return f'{bolded}{italicized}{underlined}{strikethrough}{text}{end}'
+            return f'\033[38;2;{color[0]};{color[1]};{color[2]}m{bolded}{italicized}{underlined}{strikethrough}{text}{end}'
         else:
-            return f'\033[38;2;{text_rgb[0]};{text_rgb[1]};{text_rgb[2]}m' \
-                   f'\033[48;2;{bg_rgb[0]};{bg_rgb[1]};{bg_rgb[2]}m{bolded}{italicized}{underlined}{strikethrough}{text}{end}'
+            if color is None:
+                return f'\033[48;2;{background[0]};{background[1]};{background[2]}m{bolded}{italicized}{underlined}{strikethrough}{text}{end}'
+            return f'\033[38;2;{color[0]};{color[1]};{color[2]}m' \
+                   f'\033[48;2;{background[0]};{background[1]};{background[2]}m{bolded}{italicized}{underlined}{strikethrough}{text}{end}'
 
     @staticmethod
     def st_test():
@@ -70,7 +70,7 @@ class Printer:
 
     @staticmethod
     def info(text: str, bold: bool = False, italic: bool = False,
-              underlined: bool = False, strikethrough: bool = False) -> None:
+             underlined: bool = False, strikethrough: bool = False) -> None:
         """Prints an info message to the console."""
         Printer.print_hex(text, TerminalColors.INFO, bold=bold, italic=italic,
                           underlined=underlined, strikethrough=strikethrough)
@@ -85,17 +85,18 @@ class Printer:
             print()
 
     @staticmethod
-    def print(text: str, color: str|tuple[int, int, int], bg_color: str|tuple[int, int, int] | None = None,
+    def print(text: str, color: str|tuple[int, int, int] | None = None,
+              background: str | tuple[int, int, int] | None = None,
               bold: bool = False, italic: bool = False,
               underlined: bool = False, strikethrough: bool = False) -> None:
         """Prints a message to the console. Colors strings can be in 6-digit hex format or RGB format."""
         text_hex = Printer.get_color_string(color)
-        bg_hex = Printer.get_color_string(bg_color) if bg_color is not None else None
+        bg_hex = Printer.get_color_string(background) if background is not None else None
         Printer.print_hex(text, text_hex, bg_hex, bold, italic, underlined, strikethrough)
 
     @staticmethod
-    def print_clear(text_generator: typing.Generator[str, None, None], color: str|tuple[int, int, int],
-                    bg_color: str|tuple[int, int, int] | None = None,
+    def print_clear(text_generator: typing.Generator[str, None, None], color: str|tuple[int, int, int] | None = None,
+                    background: str | tuple[int, int, int] | None = None,
                     bold: bool = False, italic: bool = False,
                     underlined: bool = False, strikethrough: bool = False) -> None:
         """Prints the messages from a generator to the console, clearing the previous line."""
@@ -103,26 +104,26 @@ class Printer:
         Printer.prevent_newline()
         for text in text_generator:
             Printer.clear_line()
-            Printer.print(text, color, bg_color, bold, italic, underlined, strikethrough)
+            Printer.print(text, color, background, bold, italic, underlined, strikethrough)
             # Printer.clear_line()
         if not was_prevented:
             Printer.prevent_newline(False)
 
     @staticmethod
-    def print_hex(text: str, text_hex: str, bg_hex: str | None = None,
+    def print_hex(text: str, color: str | None = None, background: str | None = None,
                   bold: bool = False, italic: bool = False,
                   underlined: bool = False, strikethrough: bool = False) -> None:
         """Prints a message to the console. Color strings should be in 6-digit hex format."""
-        rgb: tuple = Printer.hex_to_rgb(text_hex)
-        bg_rgb: tuple = Printer.hex_to_rgb(bg_hex) if bg_hex is not None else None
+        rgb: tuple = Printer.hex_to_rgb(color) if color is not None else None
+        bg_rgb: tuple = Printer.hex_to_rgb(background) if background is not None else None
         Printer.print_rgb(text, rgb, bg_rgb, bold, italic, underlined, strikethrough)
 
     @staticmethod
-    def print_rgb(text: str, text_rgb: tuple[int, int, int], bg_rgb: tuple[int, int, int] | None = None,
+    def print_rgb(text: str, color: tuple[int, int, int] | None = None, backgroıund: tuple[int, int, int] | None = None,
                   bold: bool = False, italic: bool = False,
                   underlined: bool = False, strikethrough: bool = False) -> None:
         """Prints a message to the console. Color tuples should be in RGB format."""
-        formatted_text = text if Printer._formatted(text) else Printer.format_rgb(text, text_rgb, bg_rgb, bold, italic,
+        formatted_text = text if Printer._formatted(text) else Printer.format_rgb(text, color, backgroıund, bold, italic,
                                                                                   underlined, strikethrough)
         print(formatted_text, end='\n' if Printer._newline else '', flush=True)
 
@@ -140,7 +141,7 @@ class Printer:
 
     @staticmethod
     def success(text: str, bold: bool = False, italic: bool = False,
-              underlined: bool = False, strikethrough: bool = False) -> None:
+                underlined: bool = False, strikethrough: bool = False) -> None:
         """Prints a success message to the console."""
         Printer.print_hex(text, TerminalColors.SUCCESS, bold=bold, italic=italic,
                           underlined=underlined, strikethrough=strikethrough)
@@ -157,7 +158,7 @@ class Printer:
 
     @staticmethod
     def warning(text: str, bold: bool = False, italic: bool = False,
-              underlined: bool = False, strikethrough: bool = False) -> None:
+                underlined: bool = False, strikethrough: bool = False) -> None:
         """Prints a warning message to the console."""
         Printer.print_hex(text, TerminalColors.WARNING, bold=bold, italic=italic,
                           underlined=underlined, strikethrough=strikethrough)

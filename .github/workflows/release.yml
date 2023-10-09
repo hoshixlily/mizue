@@ -36,7 +36,7 @@ jobs:
           current_version=$(cat .bumpversion.cfg | grep current_version | sed 's/current_version = //')
           while read line; do
             echo "$line"
-            if [[ $line == *"Github Action"* ]]; then
+            if [[ $line == *"Github Action"* || $line == *"Nanaella"* ]]; then
               break
             elif [[ $line == "fix!: "* || $line == "feat!: "* || $line == *"BREAKING CHANGE: "* ]]; then
               version_update="major"
@@ -54,8 +54,8 @@ jobs:
 
       - name: Set GitHub username and email
         run: |
-          git config --local user.name "GitHub Action"
-          git config --local user.email "action@github.com"
+          git config --local user.name "Nanaella"
+          git config --local user.email "nanaellia@outlook.com"
 
       - name: Bump version without committing or tagging
         if: env.version_update != 'none'
