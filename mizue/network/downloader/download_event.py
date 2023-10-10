@@ -13,6 +13,9 @@ class DownloadEventType(str, Enum):
     PROGRESS = "progress"
     """The download progress has been updated"""
 
+    SKIPPED = "skipped"
+    """The download has been skipped"""
+
     STARTED = "started"
     """The download has been started"""
 
@@ -43,6 +46,11 @@ class DownloadFailureEvent:
     reason: str
     status_code: int | None
     url: str
+
+
+@dataclass(frozen=True)
+class DownloadSkipEvent(DownloadBaseEvent):
+    reason: str
 
 
 @dataclass(frozen=True)
