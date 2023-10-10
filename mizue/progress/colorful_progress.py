@@ -1,7 +1,7 @@
+from .progress import Progress
 from .progress_renderer_args import LabelRendererArgs, PercentageRendererArgs, ProgressBarRendererArgs, \
     SpinnerRendererArgs
-from .progress import Progress
-from ..printer import Printer
+from ..printer import Colorizer
 
 
 class ColorfulProgress(Progress):
@@ -12,25 +12,25 @@ class ColorfulProgress(Progress):
     @staticmethod
     def get_basic_colored_text(text: str, percentage: float):
         if percentage < 15:
-            return Printer.format_hex(text, '#FF0D0D')
+            return Colorizer.colorize(text, '#FF0D0D')
         elif percentage < 30:
-            return Printer.format_hex(text, '#FF4E11')
+            return Colorizer.colorize(text, '#FF4E11')
         elif percentage < 45:
-            return Printer.format_hex(text, '#FF8E15')
+            return Colorizer.colorize(text, '#FF8E15')
         elif percentage < 60:
-            return Printer.format_hex(text, '#FAB733')
+            return Colorizer.colorize(text, '#FAB733')
         elif percentage < 75:
-            return Printer.format_hex(text, '#ACB334')
+            return Colorizer.colorize(text, '#ACB334')
         elif percentage < 90:
-            return Printer.format_hex(text, '#69B34C')
+            return Colorizer.colorize(text, '#69B34C')
         else:
-            return Printer.format_hex(text, '#0EB33B')
+            return Colorizer.colorize(text, '#0EB33B')
 
     @staticmethod
     def _label_renderer(args: LabelRendererArgs):
         if args.percentage < 100:
-            return Printer.format_hex(args.label, '#FFCC75')
-        return Printer.format_hex(args.label, '#0EB33B')
+            return Colorizer.colorize(args.label, '#FFCC75')
+        return Colorizer.colorize(args.label, '#0EB33B')
 
     @staticmethod
     def _percentage_renderer(args: PercentageRendererArgs):

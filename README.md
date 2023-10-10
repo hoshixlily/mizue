@@ -73,25 +73,22 @@ This class contains various static methods for printing text in different colors
 ```python
 from mizue.printer import Printer
 
-Printer.print_hex('Hello World!', '#ff0000')
-Printer.print_rgb('Hello World!', (255, 0, 0))
+Printer.print('Hello World!', '#ff0000')
+Printer.print('Hello World!', (255, 0, 0))
 ```
 
 Following is a list of some of the methods available in this class:
-- `format_hex(text, text_color, background_color=None, bold=False, underline=False)`
-- `format_rgb(text, rgb_color, background_color=None, bold=False, underline=False)`
-- `print_hex(text, text_color, background_color=None, bold=False, underline=False)`
-- `print_rgb(text, rgb_color, background_color=None, bold=False, underline=False)`
+- `print(text, text_color, background_color=None, bold=False, underline=False)`
 - `error(text)`
 - `warning(text)`
 - `info(text)`
 - `success(text)`
 
-Using the `format_*` methods, you can format text and use it later. For example:
+Using the `colorize` method from `Colorizer` class, you can format a text and use it later. For example:
 
 ```python
-from mizue.printer import Printer
-colored_text = Printer.format_hex('Hello World!', '#ff0000')
+from mizue.printer import Colorizer
+colored_text = Colorizer.colorize('Hello World!', '#ff0000')
 print(colored_text)
 ```
 
@@ -132,13 +129,13 @@ An example of rendering a custom label (appears before the progress bar):
 ```python
 from mizue.progress import Progress
 from mizue.progress import LabelRendererArgs
-from mizue.printer import Printer
+from mizue.printer import Colorizer
 from time import sleep
 
 def label_renderer(args: LabelRendererArgs) -> str:
-  return Printer.format_hex(args.label, '#ff0000') \
+  return Colorizer.colorize(args.label, '#ff0000') \
     if args.percentage < 50 \ 
-    else Printer.format_hex(args.label, '#00ff00')
+    else Colorizer.colorize(args.label, '#00ff00')
 
 progress = Progress(0, 1200, 0)
 progress.label_renderer = label_renderer

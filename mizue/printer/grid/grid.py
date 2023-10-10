@@ -7,7 +7,7 @@ from typing import Callable
 
 from wcwidth import wcswidth, wcwidth
 
-from mizue.printer import Printer, TerminalColors
+from mizue.printer import Colorizer
 from mizue.util import Utility
 from .alignment import Alignment
 from .border_character_codes import BorderCharacterCodes
@@ -104,7 +104,7 @@ class Grid:
                         if not (wrap or column.wrap) else wrapped_cell_part
                     colored_cells.append(rendered_cell_parts)
 
-            border = Printer.format_hex(border_style.VERTICAL, self.border_color) \
+            border = Colorizer.colorize(border_style.VERTICAL, self.border_color) \
                 if self.border_color else border_style.VERTICAL
             if index == 0:
                 row_buffer.append(f"{border}")
@@ -142,7 +142,7 @@ class Grid:
             if index != len(self.columns) - 1:
                 dash_list.append(middle)
         dash_list.append(right)
-        return Printer.format_hex("".join(dash_list), self.border_color) if self.border_color else "".join(dash_list)
+        return Colorizer.colorize("".join(dash_list), self.border_color) if self.border_color else "".join(dash_list)
 
     def _find_max_cell_width(self, column: Column) -> int:
         max_width = len(column.title)
@@ -253,7 +253,7 @@ class Grid:
     @staticmethod
     def _get_default_cell_renderer(args: CellRendererArgs) -> str:
         if args.is_header:
-            return Printer.format_hex(args.cell, '#FFCC75')
+            return Colorizer.colorize(args.cell, '#FFCC75')
         return args.cell
 
     @staticmethod
@@ -385,7 +385,7 @@ class Grid:
         line_group = 0
         diff = 0
         while dx < len(dict.keys()):
-            color, string, reset = dict[dx]
+            color, string, reset = dict.get(dx)
             line_width = wcswidth(line)
             string_width = wcswidth(string)
             if string_width + line_width == line_length:
