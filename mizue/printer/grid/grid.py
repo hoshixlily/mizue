@@ -7,7 +7,7 @@ from typing import Callable
 
 from wcwidth import wcswidth, wcwidth
 
-from mizue.printer import Printer, TerminalColors
+from mizue.printer import Colorizer
 from mizue.util import Utility
 from .alignment import Alignment
 from .border_character_codes import BorderCharacterCodes
@@ -39,11 +39,15 @@ class Grid:
 
     def fill_screen(self):
         terminal_width = Utility.get_terminal_width()
-        total_width = sum([column.width for column in self.columns]) + (4 * len(self.columns))
-        if total_width < terminal_width:
-            remaining_width = terminal_width - sum([column.width for column in self.columns]) - (4 * len(self.columns))
+        used_width = self._get_grid_width()
+        print(used_width, terminal_width)
+        unused_width = terminal_width - used_width
+
+        # split the unused width between the columns
+        if unused_width > 0:
             for column in self.columns:
-                column.width += int(remaining_width / len(self.columns))
+                percentage = (column.width + 3) / used_width
+                column.width += int(unused_width * percentage)
 
     def print(self) -> None:
         """Print the grid"""
@@ -104,7 +108,7 @@ class Grid:
                         if not (wrap or column.wrap) else wrapped_cell_part
                     colored_cells.append(rendered_cell_parts)
 
-            border = Printer.format_hex(border_style.VERTICAL, self.border_color) \
+            border = Colorizer.colorize(border_style.VERTICAL, self.border_color) \
                 if self.border_color else border_style.VERTICAL
             if index == 0:
                 row_buffer.append(f"{border}")
@@ -142,19 +146,13 @@ class Grid:
             if index != len(self.columns) - 1:
                 dash_list.append(middle)
         dash_list.append(right)
-        return Printer.format_hex("".join(dash_list), self.border_color) if self.border_color else "".join(dash_list)
+        return Colorizer.colorize("".join(dash_list), self.border_color) if self.border_color else "".join(dash_list)
 
     def _find_max_cell_width(self, column: Column) -> int:
         max_width = len(column.title)
         for row in self.data:
             cell = str(row[column.index])
-            length = 0
-            for char in str(cell):
-                if Grid._is_wide_char(char):
-                    length += 2
-                else:
-                    length += 1
-            length = length + 1 if Grid._has_variation_selector(cell) else length
+            length = Grid._get_terminal_width_of_cell(cell)
             max_width = max(max_width, length)
         return max_width
 
@@ -169,8 +167,6 @@ class Grid:
                 text = color_part[1]
                 text_width = wcswidth(text)
                 if processed_width + text_width <= column_width:
-                    # if processed_width + text_width == column_width:
-                    #     text = text[:-1] + "…" if Grid._is_wide_char(text[-1]) else text
                     formatted_text = f"{color_part[0]}{text}{color_part[2]}"
                     formatted_parts.append(formatted_text)
                     processed_width += text_width
@@ -253,8 +249,11 @@ class Grid:
     @staticmethod
     def _get_default_cell_renderer(args: CellRendererArgs) -> str:
         if args.is_header:
-            return Printer.format_hex(args.cell, '#FFCC75')
+            return Colorizer.colorize(args.cell, '#FFCC75')
         return args.cell
+
+    def _get_grid_width(self) -> int:
+        return sum([column.width for column in self.columns]) + (3 * len(self.columns) + 1)
 
     @staticmethod
     def _get_left_cell_space(column: Column, cell: str) -> str:
@@ -301,7 +300,8 @@ class Grid:
 
     @staticmethod
     def _get_terminal_width_of_cell(text):
-        return sum([2 if wcswidth(char) == 2 else 1 for char in text])
+        return (sum([2 if wcswidth(char) == 2 else 1 for char in text]) +
+                sum([1 for char in text if Grid._is_variation_selector(char)]))
 
     @staticmethod
     def _get_visible_text(text: str, max_width: int) -> str:
@@ -350,14 +350,17 @@ class Grid:
         new_column_width = int(terminal_width / len(self.columns))
         long_columns = [column for column in self.columns if column.width >= new_column_width]
 
-        remaining_width = 0
+        unused_width = 0
         for column in self.columns:
             if column.width > new_column_width:
                 column.width = new_column_width
             else:
-                remaining_width += (new_column_width - column.width - 4 * len(self.columns))
+                unused_column_width = new_column_width - column.width
+                unused_width = unused_width + unused_column_width
 
-        padding = int(remaining_width / len(long_columns)) if len(long_columns) > 0 else 0
+        unused_width = unused_width - (3 * len(self.columns)) - 1
+
+        padding = int(unused_width / len(long_columns)) if len(long_columns) > 0 else 0
         for column in long_columns:
             column.width += padding
 
@@ -385,7 +388,7 @@ class Grid:
         line_group = 0
         diff = 0
         while dx < len(dict.keys()):
-            color, string, reset = dict[dx]
+            color, string, reset = dict.get(dx)
             line_width = wcswidth(line)
             string_width = wcswidth(string)
             if string_width + line_width == line_length:
@@ -426,7 +429,7 @@ class Grid:
         return lines
 
     @staticmethod
-    def _split_text_into_color_parts(text: str, matcher_regex = None) -> list[tuple[str, str, str]]:
+    def _split_text_into_color_parts(text: str, matcher_regex=None) -> list[tuple[str, str, str]]:
         matcher = matcher_regex or re.compile(r"((?:\x1b\[.*?m)+)(.*?)(\x1b\[0m(?:\x1b\[.*?m)*)")
         substring_tuples = []
         for m in re.finditer(matcher, text):
@@ -447,7 +450,8 @@ class Grid:
             if re.match(matcher, substring):
                 g = re.match(matcher, substring).groups()
                 if "\x1b" in g[1]:
-                    return Grid._split_text_into_color_parts(text, re.compile(r"(\x1b\[38;2;\d+;\d+;\d+m(?:\x1b\[\d+m)*)(.*?)(\x1b\[0m)"))
+                    return Grid._split_text_into_color_parts(text, re.compile(
+                        r"(\x1b\[38;2;\d+;\d+;\d+m(?:\x1b\[\d+m)*)(.*?)(\x1b\[0m)"))
                 parts.append(g)
             else:
                 parts.append(("", substring, ""))
