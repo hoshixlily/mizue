@@ -52,18 +52,18 @@ class Grid:
     def _buffer(self) -> str:
         buffer = [self._create_row_border(RowBorderPosition.TOP), os.linesep]
         title_list = [column.title for column in self.columns]
-        buffer.append(self._create_row(title_list, True, False)[0])
+        buffer.append(self._create_row(title_list, True, False, True)[0])
         buffer.append(os.linesep)
         buffer.append(self._create_row_border(RowBorderPosition.MIDDLE))
         buffer.append(os.linesep)
         for row_index, row in enumerate(self.data):
-            rendered_row, rendered_cells = self._create_row(row, False, True)
+            rendered_row, rendered_cells = self._create_row(row, False, True, True)
             for index, cell in enumerate(rendered_cells):
                 row[index] = cell
             row_with_offset_rows = Grid._get_multiline_cell_offset_rows(row)
             for offset_row in row_with_offset_rows:
                 offset_row = [Grid._replace_tabs(str(cell)) for cell in offset_row]
-                buffer.append(self._create_row(offset_row, False, False)[0])
+                buffer.append(self._create_row(offset_row, False, False, False)[0])
                 buffer.append(os.linesep)
             if self.separated_rows and row_index != len(self.data) - 1:
                 buffer.append(self._create_row_border(RowBorderPosition.MIDDLE))
@@ -71,7 +71,7 @@ class Grid:
         buffer.append(self._create_row_border(RowBorderPosition.BOTTOM))
         return "".join(buffer)
 
-    def _create_row(self, row: list[str], is_header_row: bool, wrap: bool) -> (str, list[str]):
+    def _create_row(self, row: list[str], is_header_row: bool, wrap: bool, use_renderer: bool) -> (str, list[str]):
         border_style = self._get_border_style()
         row_buffer = []
         rendered_cells: list[str] = []
@@ -82,19 +82,23 @@ class Grid:
             wide_char_count = sum([1 for char in cell if Grid._is_wide_char(char)])
             renderer = self._get_cell_renderer(column)
             width = column.width - wide_char_count
-            rendered_cell = renderer(CellRendererArgs(cell=cell, index=index, is_header=is_header_row,
-                                                      width=width))
-            wrapped_cell = Grid._split_string_keep_rgb_colors(rendered_cell, width) \
-                if wrap and column.wrap else [cell]
+
             colored_cells = []
-            if renderer is not None:
+            if renderer is not None and use_renderer:
+                rendered_cell = renderer(CellRendererArgs(cell=cell, index=index, is_header=is_header_row,
+                                                          width=width))
+                wrapped_cell = Grid._split_string_keep_rgb_colors(rendered_cell, width) \
+                    if wrap and column.wrap else [rendered_cell]
                 for wrapped_cell_part in wrapped_cell:
-                    rendered_cell_parts = renderer(CellRendererArgs(cell=wrapped_cell_part, index=index, is_header=is_header_row,
-                                                              width=column.width))
-                    rendered_cell_parts = self._format_cell_with_colors(rendered_cell_parts, column.width) \
-                        if not (wrap or column.wrap) else rendered_cell_parts
+                    # rendered_cell_parts = renderer(CellRendererArgs(cell=wrapped_cell_part, index=index,
+                    #                                                 is_header=is_header_row, width=column.width))
+                    # print(f"{rendered_cell_parts} :: TEST")
+                    rendered_cell_parts = self._format_cell_with_colors(wrapped_cell_part, column.width) \
+                        if not (wrap or column.wrap) else wrapped_cell_part
                     colored_cells.append(rendered_cell_parts)
             else:
+                wrapped_cell = Grid._split_string_keep_rgb_colors(cell, width) \
+                    if wrap and column.wrap else [cell]
                 for wrapped_cell_part in wrapped_cell:
                     rendered_cell_parts = self._format_cell_with_colors(wrapped_cell_part, column.width) \
                         if not (wrap or column.wrap) else wrapped_cell_part
@@ -165,8 +169,8 @@ class Grid:
                 text = color_part[1]
                 text_width = wcswidth(text)
                 if processed_width + text_width <= column_width:
-                    if processed_width + text_width == column_width:
-                        text = text[:-1] + "…" if Grid._is_wide_char(text[-1]) else text
+                    # if processed_width + text_width == column_width:
+                    #     text = text[:-1] + "…" if Grid._is_wide_char(text[-1]) else text
                     formatted_text = f"{color_part[0]}{text}{color_part[2]}"
                     formatted_parts.append(formatted_text)
                     processed_width += text_width
@@ -185,13 +189,13 @@ class Grid:
             if col_width == 1:
                 if len(cell) == 1:
                     return cell[0] if wcwidth(cell[0]) == 1 else "…"
-                return "…" if wcwidth(cell[0]) == 1 else "…"
+                return "…" if len(cell) > 1 and wcwidth(cell[0]) == 1 else " "
             if col_width == 2:
                 if len(cell) == 1:
                     return cell[0] if wcwidth(cell[0]) == 1 else "…"
                 if len(cell) == 2:
                     return cell[0] + cell[1] if wcwidth(cell[0]) == 1 and wcwidth(cell[1]) == 1 else "…"
-                return "…" if wcwidth(cell[0]) == 1 else "…"
+                return "…" if len(cell) > 1 and wcwidth(cell[0]) == 1 else " "
             if col_width == 3:
                 if wcwidth(cell[0]) == 2:
                     return cell[0] + "…"
@@ -335,7 +339,7 @@ class Grid:
             column.width = column_setting["width"] if "width" in column_setting else self._find_max_cell_width(column)
             columns.append(column)
         self._columns = columns
-        # self._resize_columns_to_fit()
+        self._resize_columns_to_fit()
 
     @staticmethod
     def _replace_tabs(text: str) -> str:
@@ -418,12 +422,12 @@ class Grid:
             for color, string, reset, line_group in group:
                 line += color + string + reset
             lines.append(line)
+            # print(line)
         return lines
 
     @staticmethod
-    def _split_text_into_color_parts(text: str) -> list[tuple[str, str, str]]:
-        # matcher = re.compile(r"(\x1b\[38;2;\d+;\d+;\d+m(?:\x1b\[\d+m)*)(.*?)(\x1b\[0m)")
-        matcher = re.compile(r"((?:\x1b\[.*?m)+)(.*?)(\x1b\[0m(?:\x1b\[.*?m)*)")
+    def _split_text_into_color_parts(text: str, matcher_regex = None) -> list[tuple[str, str, str]]:
+        matcher = matcher_regex or re.compile(r"((?:\x1b\[.*?m)+)(.*?)(\x1b\[0m(?:\x1b\[.*?m)*)")
         substring_tuples = []
         for m in re.finditer(matcher, text):
             substring_tuples.append(m.span())
@@ -442,6 +446,8 @@ class Grid:
         for substring in substrings:
             if re.match(matcher, substring):
                 g = re.match(matcher, substring).groups()
+                if "\x1b" in g[1]:
+                    return Grid._split_text_into_color_parts(text, re.compile(r"(\x1b\[38;2;\d+;\d+;\d+m(?:\x1b\[\d+m)*)(.*?)(\x1b\[0m)"))
                 parts.append(g)
             else:
                 parts.append(("", substring, ""))
