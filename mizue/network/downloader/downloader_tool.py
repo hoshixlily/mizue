@@ -204,9 +204,9 @@ class DownloaderTool(EventListener):
         status_text = str.format("{}{}{}{}{}{}{}",
                                  ColorfulProgress.get_basic_colored_text("⟪", args.percentage),
                                  successful_text,
-                                 ColorfulProgress.get_basic_colored_text("/", args.percentage),
+                                 ColorfulProgress.get_basic_colored_text(" / ", args.percentage),
                                  failed_text,
-                                 ColorfulProgress.get_basic_colored_text("/", args.percentage),
+                                 ColorfulProgress.get_basic_colored_text(" / ", args.percentage),
                                  skipped_text,
                                  ColorfulProgress.get_basic_colored_text("⟫", args.percentage))
         full_info_text = str.format("{}{}{}", info_text, separator, status_text)
@@ -290,7 +290,6 @@ class DownloaderTool(EventListener):
                 _DownloadReportGridData(ext[1:], report.filename,
                                         FileUtils.get_readable_file_size(report.filesize), row_index,
                                         DownloadEventType.COMPLETED)
-                # [row_index, report.filename, ext[1:], FileUtils.get_readable_file_size(report.filesize)]
             )
             row_index += 1
 
@@ -298,10 +297,9 @@ class DownloaderTool(EventListener):
         for report in failed_data:
             url, ext = os.path.splitext(report.url)
             failed_grid_data.append(
-                _DownloadReportGridData(ext, report.url,
+                _DownloadReportGridData(ext[1:], report.url,
                                         FileUtils.get_readable_file_size(report.filesize), row_index,
                                         DownloadEventType.FAILED)
-                # [row_index, report.url, "", 'Failed']
             )
             row_index += 1
 
@@ -309,17 +307,16 @@ class DownloaderTool(EventListener):
         for report in skipped_data:
             url, ext = os.path.splitext(report.url)
             skipped_grid_data.append(
-                _DownloadReportGridData(ext, report.url,
+                _DownloadReportGridData(ext[1:], report.url,
                                         FileUtils.get_readable_file_size(report.filesize), row_index,
                                         DownloadEventType.SKIPPED)
-                # [row_index, report.filename, "", 'Skipped']
             )
             row_index += 1
 
         grid_columns: list[ColumnSettings] = [
             ColumnSettings(title='#', alignment=Alignment.RIGHT,
                            renderer=lambda x: Printer.format_hex(x.cell, '#FFCC75')),
-            ColumnSettings(title='Filename/URL', width=50, wrap=True, renderer=self._report_grid_file_column_cell_renderer),
+            ColumnSettings(title='Filename/URL', wrap=True, renderer=self._report_grid_file_column_cell_renderer),
             ColumnSettings(title='Type', alignment=Alignment.RIGHT,
                            renderer=self._report_grid_file_type_column_cell_renderer),
             ColumnSettings(title='Filesize', alignment=Alignment.RIGHT,
@@ -343,6 +340,7 @@ class DownloaderTool(EventListener):
         grid.border_color = '#FFCC75'
         grid.cell_renderer = self._report_grid_cell_renderer
         print(os.linesep)
+        # grid.fill_screen()
         grid.print()
 
     @staticmethod
@@ -350,7 +348,9 @@ class DownloaderTool(EventListener):
         if args.cell == 'Failed':
             return Printer.format_hex(args.cell, '#FF0000')
         if args.cell == 'Skipped':
-            return Printer.format_hex(args.cell, '#FFCC75')
+            return Printer.format_hex(args.cell, '#9A3B3B')
+        if args.cell == 'Completed':
+            return Printer.format_hex(args.cell, '#0EB33B')
         if args.cell.endswith("KB"):
             return Printer.format_hex(args.cell, '#00a9ff')
         if args.cell.endswith("MB"):
@@ -364,9 +364,7 @@ class DownloaderTool(EventListener):
             return Printer.format_hex(args.cell, '#FFCC75')
         file, ext = os.path.splitext(args.cell)
         color = self._file_color_scheme.get(ext[1:], '#FFFFFF')
-        print("Rendered cell: ", args.cell)
         return Printer.format_hex(args.cell, color)
-        # return args.cell
 
     def _report_grid_file_type_column_cell_renderer(self, args: CellRendererArgs):
         if args.is_header:
