@@ -422,7 +422,8 @@ class Grid:
 
     @staticmethod
     def _split_text_into_color_parts(text: str) -> list[tuple[str, str, str]]:
-        matcher = re.compile(r"(\x1b\[38;2;\d+;\d+;\d+m(?:\x1b\[\d+m)*)(.*?)(\x1b\[0m)")
+        # matcher = re.compile(r"(\x1b\[38;2;\d+;\d+;\d+m(?:\x1b\[\d+m)*)(.*?)(\x1b\[0m)")
+        matcher = re.compile(r"((?:\x1b\[.*?m)+)(.*?)(\x1b\[0m(?:\x1b\[.*?m)*)")
         substring_tuples = []
         for m in re.finditer(matcher, text):
             substring_tuples.append(m.span())
