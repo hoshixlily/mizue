@@ -166,16 +166,17 @@ class DownloaderTool(EventListener):
         self.progress.info_separator_renderer = self._info_separator_renderer
         self.progress.info_text_renderer = self._info_text_renderer
         self.progress.label_renderer = self._label_renderer
-        self.progress.label = Colorizer.colorize("Downloading: ", bold=True, color="#FFFFFF")
+        self.progress.label = Colorizer.colorize("Downloading: ", bold=True)
 
     @staticmethod
     def _get_basic_colored_text(text: str, percentage: float):
         return ColorfulProgress.get_basic_colored_text(text, percentage)
 
     def _get_bulk_progress_info(self, download_dict: dict):
-        file_progress_text = f'⟪{self._downloaded_count}/{self._total_download_count}⟫'
+        downloaded_str = f"{self._downloaded_count}".zfill(len(str(self._total_download_count)))
+        file_progress_text = f'⟪◆⎯ {downloaded_str}/{self._total_download_count} ⎯◆⟫'
         size_text = FileUtils.get_readable_file_size(sum(download_dict.values()))
-        return f'{file_progress_text} ⟪{size_text}⟫'
+        return f'{file_progress_text} ⟪◆⎯ {size_text} ⎯◆⟫'
 
     @staticmethod
     def _get_download_event_type_text(event_type: DownloadEventType):
@@ -198,17 +199,17 @@ class DownloaderTool(EventListener):
     def _info_text_renderer(self, args: InfoTextRendererArgs):
         info_text = DownloaderTool._get_basic_colored_text(args.text, args.percentage)
         separator = ColorfulProgress.get_basic_colored_text(" | ", args.percentage)
-        successful_text = Colorizer.colorize(f'{self._success_count}', '#0EB33B')
+        successful_text = Colorizer.colorize(f'{self._success_count}', '#9acd32')
         failed_text = Colorizer.colorize(f'{self._failure_count}', '#FF0000')
-        skipped_text = Colorizer.colorize(f'{self._skip_count}', '#FFCC75')
+        skipped_text = Colorizer.colorize(f'{self._skip_count}', '#777777')
         status_text = str.format("{}{}{}{}{}{}{}",
-                                 ColorfulProgress.get_basic_colored_text("⟪", args.percentage),
+                                 ColorfulProgress.get_basic_colored_text("⟪◆⎯ ", args.percentage),
                                  successful_text,
-                                 ColorfulProgress.get_basic_colored_text(" / ", args.percentage),
+                                 ColorfulProgress.get_basic_colored_text(" ◆ ", args.percentage),
                                  failed_text,
-                                 ColorfulProgress.get_basic_colored_text(" / ", args.percentage),
+                                 ColorfulProgress.get_basic_colored_text(" ◆ ", args.percentage),
                                  skipped_text,
-                                 ColorfulProgress.get_basic_colored_text("⟫", args.percentage))
+                                 ColorfulProgress.get_basic_colored_text(" ⎯◆⟫", args.percentage))
         full_info_text = str.format("{}{}{}", info_text, separator, status_text)
         return full_info_text
 
@@ -314,9 +315,9 @@ class DownloaderTool(EventListener):
             row_index += 1
 
         grid_columns: list[ColumnSettings] = [
-            ColumnSettings(title='#', alignment=Alignment.RIGHT,
+            ColumnSettings(title='#', alignment=Alignment.RIGHT, wrap=False,
                            renderer=lambda x: Colorizer.colorize(x.cell, '#FFCC75')),
-            ColumnSettings(title='Filename/URL', wrap=True, renderer=self._report_grid_file_column_cell_renderer),
+            ColumnSettings(title='Filename/URL', wrap=False, renderer=self._report_grid_file_column_cell_renderer),
             ColumnSettings(title='Type', alignment=Alignment.RIGHT,
                            renderer=self._report_grid_file_type_column_cell_renderer),
             ColumnSettings(title='Filesize', alignment=Alignment.RIGHT,
@@ -348,7 +349,7 @@ class DownloaderTool(EventListener):
         if args.cell == 'Failed':
             return Colorizer.colorize(args.cell, '#FF0000')
         if args.cell == 'Skipped':
-            return Colorizer.colorize(args.cell, '#9A3B3B')
+            return Colorizer.colorize(args.cell, '#777777')
         if args.cell == 'Completed':
             return Colorizer.colorize(args.cell, '#0EB33B')
         if args.cell.endswith("KB"):
