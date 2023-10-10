@@ -9,7 +9,7 @@ from mizue.file import FileUtils
 from mizue.network.downloader import DownloadStartEvent, ProgressEventArgs, DownloadCompleteEvent, Downloader, \
     DownloadEventType, DownloadFailureEvent
 from mizue.network.downloader.download_event import DownloadSkipEvent
-from mizue.printer import Printer
+from mizue.printer import Printer, Colorizer
 from mizue.printer.grid import ColumnSettings, Alignment, Grid, BorderStyle, CellRendererArgs
 from mizue.progress import LabelRendererArgs, \
     InfoSeparatorRendererArgs, InfoTextRendererArgs, ColorfulProgress
@@ -166,7 +166,7 @@ class DownloaderTool(EventListener):
         self.progress.info_separator_renderer = self._info_separator_renderer
         self.progress.info_text_renderer = self._info_text_renderer
         self.progress.label_renderer = self._label_renderer
-        self.progress.label = "Downloading: "
+        self.progress.label = Colorizer.colorize("Downloading: ", bold=True, color="#FFFFFF")
 
     @staticmethod
     def _get_basic_colored_text(text: str, percentage: float):
@@ -198,9 +198,9 @@ class DownloaderTool(EventListener):
     def _info_text_renderer(self, args: InfoTextRendererArgs):
         info_text = DownloaderTool._get_basic_colored_text(args.text, args.percentage)
         separator = ColorfulProgress.get_basic_colored_text(" | ", args.percentage)
-        successful_text = Printer.format_hex(f'{self._success_count}', '#0EB33B')
-        failed_text = Printer.format_hex(f'{self._failure_count}', '#FF0000')
-        skipped_text = Printer.format_hex(f'{self._skip_count}', '#FFCC75')
+        successful_text = Colorizer.colorize(f'{self._success_count}', '#0EB33B')
+        failed_text = Colorizer.colorize(f'{self._failure_count}', '#FF0000')
+        skipped_text = Colorizer.colorize(f'{self._skip_count}', '#FFCC75')
         status_text = str.format("{}{}{}{}{}{}{}",
                                  ColorfulProgress.get_basic_colored_text("⟪", args.percentage),
                                  successful_text,
@@ -215,8 +215,8 @@ class DownloaderTool(EventListener):
     @staticmethod
     def _label_renderer(args: LabelRendererArgs):
         if args.percentage < 100:
-            return Printer.format_hex(args.label, '#FFCC75')
-        return Printer.format_hex('Downloaded: ', '#0EB33B')
+            return Colorizer.colorize(args.label, '#FFCC75')
+        return Colorizer.colorize('Downloaded: ', '#0EB33B')
 
     def _load_color_scheme(self):
         file_path = os.path.join(os.path.dirname(__file__), "data", "colors.json")
@@ -315,7 +315,7 @@ class DownloaderTool(EventListener):
 
         grid_columns: list[ColumnSettings] = [
             ColumnSettings(title='#', alignment=Alignment.RIGHT,
-                           renderer=lambda x: Printer.format_hex(x.cell, '#FFCC75')),
+                           renderer=lambda x: Colorizer.colorize(x.cell, '#FFCC75')),
             ColumnSettings(title='Filename/URL', wrap=True, renderer=self._report_grid_file_column_cell_renderer),
             ColumnSettings(title='Type', alignment=Alignment.RIGHT,
                            renderer=self._report_grid_file_type_column_cell_renderer),
@@ -346,28 +346,28 @@ class DownloaderTool(EventListener):
     @staticmethod
     def _report_grid_cell_renderer(args: CellRendererArgs):
         if args.cell == 'Failed':
-            return Printer.format_hex(args.cell, '#FF0000')
+            return Colorizer.colorize(args.cell, '#FF0000')
         if args.cell == 'Skipped':
-            return Printer.format_hex(args.cell, '#9A3B3B')
+            return Colorizer.colorize(args.cell, '#9A3B3B')
         if args.cell == 'Completed':
-            return Printer.format_hex(args.cell, '#0EB33B')
+            return Colorizer.colorize(args.cell, '#0EB33B')
         if args.cell.endswith("KB"):
-            return Printer.format_hex(args.cell, '#00a9ff')
+            return Colorizer.colorize(args.cell, '#00a9ff')
         if args.cell.endswith("MB"):
-            return Printer.format_hex(args.cell, '#d2309a')
+            return Colorizer.colorize(args.cell, '#d2309a')
         if args.is_header:
-            return Printer.format_hex(args.cell, '#FFCC75')
+            return Colorizer.colorize(args.cell, '#FFCC75')
         return args.cell
 
     def _report_grid_file_column_cell_renderer(self, args: CellRendererArgs):
         if args.is_header:
-            return Printer.format_hex(args.cell, '#FFCC75')
+            return Colorizer.colorize(args.cell, '#FFCC75')
         file, ext = os.path.splitext(args.cell)
         color = self._file_color_scheme.get(ext[1:], '#FFFFFF')
-        return Printer.format_hex(args.cell, color)
+        return Colorizer.colorize(args.cell, color)
 
     def _report_grid_file_type_column_cell_renderer(self, args: CellRendererArgs):
         if args.is_header:
-            return Printer.format_hex(args.cell, '#FFCC75')
+            return Colorizer.colorize(args.cell, '#FFCC75')
         color = self._file_color_scheme.get(args.cell, '#FFFFFF')
-        return Printer.format_hex(args.cell, color)
+        return Colorizer.colorize(args.cell, color)
