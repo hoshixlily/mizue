@@ -8,7 +8,7 @@ from pathvalidate import sanitize_filename
 
 from mizue.util import EventListener
 from .download_event import DownloadEventType, DownloadFailureEvent, DownloadCompleteEvent, DownloadStartEvent, \
-    ProgressEventArgs
+    ProgressEventArgs, DownloadSkipEvent
 from .download_metadata import DownloadMetadata
 from .progress_data import ProgressData
 
@@ -17,6 +17,9 @@ class Downloader(EventListener):
     def __init__(self):
         super().__init__()
         self._alive = True
+
+        self.force_download = False
+        """Whether to force the download even if the file already exists"""
 
         self.output_path = "."
         """The output path for the downloaded files"""
@@ -38,12 +41,19 @@ class Downloader(EventListener):
 
     def download(self, url: str, output_path: str = None):
         path_to_save = output_path if output_path is not None and len(output_path) > 0 else self.output_path
-
         response = self._get_response(url)
         if response and response.status_code == 200:
             metadata = self._get_download_metadata(response, path_to_save)
-            self._download(response, metadata, path_to_save, lambda init_data: self._progress_init(init_data),
-                           lambda progress_data: self._progress_callback(progress_data))
+            if not os.path.exists(metadata.filepath) or self.force_download:
+                self._download(response, metadata, path_to_save, lambda init_data: self._progress_init(init_data),
+                               lambda progress_data: self._progress_callback(progress_data))
+            else:
+                self._fire_event(DownloadEventType.SKIPPED, DownloadSkipEvent(
+                    url=metadata.url,
+                    filename=metadata.filename,
+                    filepath=metadata.filepath,
+                    reason="File already exists"
+                ))
         else:
             self._fire_failure_event(url, response, exception=None)
 
@@ -136,12 +146,11 @@ class Downloader(EventListener):
             if filename:
                 return filename
         else:
-            unquoted_url = urllib.parse.unquote_plus(response.url, encoding='utf-8', errors='replace')
-            unquoted_url = unquoted_url.replace("?", "_")
-            url_filename = urllib.parse.urlparse(unquoted_url)
-            filename = os.path.basename(url_filename.path)
-            if filename:
-                return sanitize_filename(filename)
+            unquoted_filename = urllib.parse.unquote(response.url.split("/")[-1], encoding='utf-8', errors='replace')
+            if unquoted_filename and "?" in unquoted_filename:
+                unquoted_filename = unquoted_filename[:unquoted_filename.rfind("?")]
+            if unquoted_filename:
+                return sanitize_filename(unquoted_filename)
         return None
 
     def _get_response(self, url: str) -> requests.Response | None:
