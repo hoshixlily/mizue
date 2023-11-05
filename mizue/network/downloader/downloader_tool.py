@@ -140,6 +140,7 @@ class DownloaderTool(EventListener):
                 responses: list[concurrent.futures.Future] = []
                 downloader = Downloader()
                 downloader.force_download = self.force_download
+                downloader.add_event(DownloadEventType.STARTED, lambda event: self._on_bulk_download_start(event))
                 downloader.add_event(DownloadEventType.PROGRESS,
                                      lambda event: self._on_bulk_download_progress(event, download_dict))
                 downloader.add_event(DownloadEventType.COMPLETED,
@@ -227,18 +228,25 @@ class DownloaderTool(EventListener):
     def _on_bulk_download_complete(self, event: DownloadCompleteEvent):
         self._report_data.append(_DownloadReport(event.filename, event.filesize, ReportReason.COMPLETED, event.url))
         self._success_count += 1
+        self._fire_event(DownloadEventType.COMPLETED, event)
 
     def _on_bulk_download_failed(self, event: DownloadFailureEvent):
         self._report_data.append(_DownloadReport("", 0, ReportReason.FAILED, event.url))
         self._failure_count += 1
+        self._fire_event(DownloadEventType.FAILED, event)
 
     def _on_bulk_download_progress(self, event: ProgressEventArgs, download_dict: dict):
         download_dict[event.url] = event.downloaded
         self.progress.info_text = self._get_bulk_progress_info(download_dict)
+        self._fire_event(DownloadEventType.PROGRESS, event)
 
     def _on_bulk_download_skip(self, event: DownloadSkipEvent):
         self._report_data.append(_DownloadReport(event.filename, 0, ReportReason.SKIPPED, event.url))
         self._skip_count += 1
+        self._fire_event(DownloadEventType.SKIPPED, event)
+
+    def _on_bulk_download_start(self, event: DownloadStartEvent):
+        self._fire_event(DownloadEventType.STARTED, event)
 
     def _on_download_complete(self, event: DownloadCompleteEvent):
         self.progress.update_value(event.filesize)
