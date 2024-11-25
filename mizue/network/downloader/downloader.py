@@ -1,4 +1,5 @@
 import os
+import re
 import urllib.parse
 import uuid
 from typing import Callable
@@ -142,15 +143,16 @@ class Downloader(EventListener):
     def _get_filename(response: requests.Response) -> str | None:
         content_disposition = response.headers.get('content-disposition')
         if content_disposition:
-            filename = content_disposition.split("filename=")[1].split(";")[0].replace("\"", "").strip()
-            if filename:
-                return filename
+            match = re.search(r'filename\*?=(?:(?:UTF-8\'\')?([^;\n]+))', content_disposition)
+            if match:
+                filename = urllib.parse.unquote(match.group(1).strip('"'))
+                return sanitize_filename(filename) if filename else None
         else:
-            unquoted_filename = urllib.parse.unquote(response.url.split("/")[-1], encoding='utf-8', errors='replace')
-            if unquoted_filename and "?" in unquoted_filename:
-                unquoted_filename = unquoted_filename[:unquoted_filename.rfind("?")]
-            if unquoted_filename:
-                return sanitize_filename(unquoted_filename)
+            parsed = urllib.parse.urlparse(response.url)
+            quoted_filename = os.path.basename(parsed.path)
+            filename = urllib.parse.unquote(quoted_filename)
+            return sanitize_filename(filename) if filename else None
+
         return None
 
     def _get_response(self, url: str) -> requests.Response | None:
