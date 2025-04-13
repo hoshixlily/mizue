@@ -115,7 +115,7 @@ class Progress:
         ))
         progress_text = str.format("{}{} {} {}{}{}", label, bar, spinner_symbol, percentage, separator,
                                    info_text)
-        text_length = len(Printer.strip_colors(progress_text))
+        text_length = len(Printer.strip_ansi(progress_text))
         if text_length > Utility.get_terminal_width():
             progress_text = str.format("{}{} {} {}{}", label, bar, spinner_symbol, percentage, '')
             if text_length > Utility.get_terminal_width():

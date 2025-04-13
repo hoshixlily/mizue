@@ -25,23 +25,26 @@ class Colorizer:
                       bold: bool = False, italic: bool = False, underlined: bool = False,
                       strikethrough: bool = False) -> str:
         """Formats a string with the specified customizations. Color tuples should be in RGB format."""
-        bolded = TerminalColors.BOLD if bold else ''
-        italicized = TerminalColors.ITALIC if italic else ''
-        underlined = TerminalColors.UNDERLINE if underlined else ''
-        strikethrough = TerminalColors.STRIKETHROUGH if strikethrough else ''
-        end = TerminalColors.END_CHAR
-        if background is None:
-            if color is None:
-                return f'{bolded}{italicized}{underlined}{strikethrough}{text}{end}'
-            return (f'\033[38;2;{color[0]};{color[1]};{color[2]}m'
-                    f'{bolded}{italicized}{underlined}{strikethrough}{text}{end}')
-        else:
-            if color is None:
-                return (f'\033[48;2;{background[0]};{background[1]};{background[2]}m'
-                        f'{bolded}{italicized}{underlined}{strikethrough}{text}{end}')
-            return (f'\033[38;2;{color[0]};{color[1]};{color[2]}m'
-                    f'\033[48;2;{background[0]};{background[1]};{background[2]}m'
-                    f'{bolded}{italicized}{underlined}{strikethrough}{text}{end}')
+        style_codes = []
+        if color:
+            style_codes.append(f'\033[38;2;{color[0]};{color[1]};{color[2]}m')
+        if background:
+            style_codes.append(f'\033[48;2;{background[0]};{background[1]};{background[2]}m')
+        if bold:
+            style_codes.append(TerminalColors.BOLD)
+        if italic:
+            style_codes.append(TerminalColors.ITALIC)
+        if underlined:
+            style_codes.append(TerminalColors.UNDERLINE)
+        if strikethrough:
+            style_codes.append(TerminalColors.STRIKETHROUGH)
+
+        if not style_codes:
+            return text # No styling needed
+
+        prefix = "".join(style_codes)
+        suffix = TerminalColors.END_CHAR
+        return f'{prefix}{text}{suffix}'
 
     @staticmethod
     def get_color_rgb(color: str | tuple[int, int, int]) -> tuple[int, int, int]:
